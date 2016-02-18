@@ -6,7 +6,7 @@ import (
 	"testing"
 )
 
-const deadline = 30
+const deadline = 20
 
 func TestDriver(t *testing.T) {
 	driver.ElevInit()
