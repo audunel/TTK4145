@@ -20,7 +20,7 @@ type Order struct {
 }
 
 type SlaveData struct {
-	LastPasserFloor		int
+	LastPassedFloor		int
 	CurrentDirection	driver.MotorDirection
 	Orders			[]Order
 }
