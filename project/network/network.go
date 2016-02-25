@@ -1,112 +1,98 @@
 package network
 
 import (
-	"net"
 	"fmt"
+	"net"
 	"log"
+	"strconv"
 )
 
-type tcpMessage struct {
-	Raddr 	string
-	Data	string
+var laddr, baddr *net.UDPAddr
+
+type UDPMessage struct {
+	Raddr	string
+	Data	[]byte
 	Length	int
 }
 
-var connList map[string]*net.TCPConn
-var connListMutex = &sync.Mutex{}
-type tcpConn struct {
-	conn	  *net.TCPConn
-	recieveCh chan tcpMessage
-}
-
-func TCPInit(localListenPort int, sendCh, recieveCh chan tcpMessage) {
-	fmt.Println("Initializing TCP")
-
-	connList = make(map[string]*net.TCPConn)
-
-	baddr, err := net.ResolveUDPAddr("udp4", "255.255.255.255:"+strconv.Itoa(20323)
+func UDPInit(localListenPort, broadcastListenPort, msgSize int, sendCh, receiveCh chan UDPMessage) (err error) {
+	baddr, err = net.ResolveUDPAddr("udp4", "255.255.255.255:"+strconv.Itoa(broadcastListenPort))
 	if err != nil {
-		log.Fatal(err)
+		return err
 	}
 
-	// Generates local address
 	tempConn, err := net.DialUDP("udp4", nil, baddr)
-	if err != nil {
-		log.Fatal(err)
-	}
+	defer tempConn.Close()
 	tempAddr := tempConn.LocalAddr()
-	laddr, err := net.ResolveTCPAddr("tcp4", net.JoinHostPort(tempAddr.String(), localListenPort)
-	if err != nil {
-		log.Fatal(err)
-	}
-	tempConn.Close()
+	laddr, err := net.ResolveUDPAddr("udp4", tempAddr.String())
+	laddr.Port = localListenPort
 
-	listener, err := net.ListenTCP("tcp4", laddr)
+	fmt.Println(laddr)
+
+	localListenConn, err := net.ListenUDP("udp4", laddr)
 	if err != nil {
-		log.Fatal(err)
+		return err
 	}
 
-	go TCPTransmitServer(sendCh)
-	go AcceptConns(listener)
+	broadcastListenConn, err := net.ListenUDP("udp", baddr)
+	if err != nil {
+		localListenConn.Close()
+		return err
+	}
+
+	go udpReceiveServer(localListenConn, broadcastListenConn, msgSize, receiveCh)
+	go udpTransmitServer(localListenConn, broadcastListenConn, sendCh)
+
+	return err
 }
 
-func TCPTransmitServer(ch chan TCPMessage) {
+func udpTransmitServer(lconn, bconn *net.UDPConn, sendCh chan UDPMessage) {
+	var err error
+
 	for {
-		msg := <-ch
-		_, ok := connList[msg.Raddr]
-		if ok != true {
-			NewTCPConn(msg.Raddr)
-		}
-		connListMutex.Lock()
-		sendConn, ok := connList[msg.Raddr]
-		if(ok != true) {
-			connListMutex.Unlock()
-			err := errors.New("Failed to connect to " + msg.Raddr + "\n")
-			panic(err)
-		} else {
-			n, err := sendConn.Write([]byte(msg.Data))
-			connListMutex.Unlock()
-			if err != nil || n < 0 {
+		msg := <-sendCh
+		if msg.Raddr == "broadcast" {
+			_, err = lconn.WriteToUDP(msg.Data, baddr)
+		} else {
+			raddr, err := net.ResolveUDPAddr("udp", msg.Raddr)
+			if err != nil {
 				log.Fatal(err)
-				connListMutex.Lock()
-				delete(connList, msg.Raddr)
-				conListMutex.Unlock()
+				panic(err)
 			}
+			_, err = lconn.WriteToUDP(msg.Data, raddr)
 		}
-	}
-}
-
-func AcceptConn(listener TCPListener, recieveCh chan tcpMessage) {
-	// Listens for new connections
-	for {
-		newConn, err := listener.AcceptTCP()
-		fmt.Println("Received new request for connection")
 		if err != nil {
 			log.Fatal(err)
+			panic(err)
 		}
-		raddr := newConn.RemoteAddr()
-		connListMutex.Lock()
-		connList[raddr.String()] = newConn
-		connListMutex.Unlock()
-
-		go ReadServer(raddr, newConn, receiveCh)
 	}
 }
 
-func ReadServer(raddr string, conn *net.TCPConn, receiveCh chan tcpMessage) {
-	// Reading server for connection conn
-	buf := make([]byte, 1024)
+func udpReceiveServer(lconn, bconn *net.UDPConn, msgSize int, receiveCh chan UDPMessage) {
+	bconnReceiveCh := make(chan UDPMessage)
+	lconnReceiveCh := make(chan UDPMessage)
+
+	go udpConnectionReader(lconn, msgSize, lconnReceiveCh)
+	go udpConnectionReader(bconn, msgSize, bconnReceiveCh)
+
 	for {
-		n, err := conn.Read(buf)
-		if err != nil || n < 0 {
-			log.Fatal(err)
-			connListMutex.Lock()
-			conn.Close()
-			delete(connList, raddr)
-			connListMutex.Unlock()
-			return
-		} else {
-			receiveCh <- tcpMessage{Raddr:raddr, Data:string(buf[:n], Length:n}
+		select {
+		case buf := <-bconnReceiveCh:
+			receiveCh <- buf
+		case buf := <-lconnReceiveCh:
+			receiveCh <- buf
 		}
+	}
+}
+
+func udpConnectionReader(conn *net.UDPConn, msgSize int, receiveCh chan UDPMessage) {
+	for {
+		buf := make([]byte, msgSize)
+		n, raddr, err := conn.ReadFromUDP(buf)
+		if err != nil {
+			log.Fatal(err)
+			panic(err)
+		}
+		receiveCh <- UDPMessage{Raddr: raddr.String(), Data: buf[:n], Length: n}
 	}
 }
