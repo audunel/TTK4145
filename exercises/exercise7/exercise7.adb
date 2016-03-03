@@ -23,6 +23,8 @@ procedure exercise7 is
 
 			if Aborted then
 				Should_Commit := False;
+			else
+				Should_Commit := True;
 			end if;
 
 			if Finished'Count = 0 then
@@ -50,7 +52,7 @@ procedure exercise7 is
     function Unreliable_Slow_Add (x : Integer) return Integer is
     Error_Rate : Constant := 0.15;  -- (between 0 and 1)
     begin
-		if Random(Gen) < Error_Rate then
+		if Random(Gen) > Error_Rate then
 			delay Duration(4.0 * Random(Gen));
 			return x + 10;
 		else
