@@ -37,7 +37,15 @@ type Slave struct {
 	HastTimedOut	bool
 }
 
-func DecodeMasterMessage(b []byte) (MasterData, error) {
+func EncodeMasterData(m MasterData) b []byte {
+	result, err := json.Marshal(m)
+	if err != nil {
+		log.Fatal(err)
+	}
+	return result
+}
+
+func DecodeMasterData(b []byte) (MasterData, error) {
 	var result MasterData
 	err := json.Unmarshal(b, &result)
 	return result, err
@@ -49,6 +57,12 @@ func EncodeSlaveData(s SlaveData) []byte {
 		log.Fatal(err)
 	}
 	return result
+}
+
+func DecodeSlaveData(b []byte) (SlaveData, error) {
+	var result SlaveData
+	err := json.Unmasrhsal(b, &result)
+	return result, err
 }
 
 type ElevatorEvent struct {
