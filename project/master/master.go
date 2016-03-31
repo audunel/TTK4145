@@ -1,7 +1,7 @@
 package master
 
 import (
-	"../communication"
+	"../com"
 	"../network"
 	"../driver"
 	"time"
@@ -10,8 +10,8 @@ import (
 
 const clientTimeout = 5 * time.Second
 
-func WaitForBackup(events communication.MasterEvent, initialQueue []communication.Order,
-					initialSlaves map[network.ID]communication.Slave) {
+func WaitForBackup(events com.MasterEvent, initialQueue []com.Order,
+					initialSlaves map[network.ID]com.Slave) {
 
 	myID := network.GetOwnID()
 	fmt.Printf("Waiting for backup on machine %s\n", myID.String())
@@ -21,7 +21,7 @@ func WaitForBackup(events communication.MasterEvent, initialQueue []communicatio
 
 	for {
 		packet := <- events.FromSlave
-		_, err := communication.DecodeSlaveData
+		_, err := com.DecodeSlaveData
 		if err != nil {
 			break
 		}

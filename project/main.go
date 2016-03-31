@@ -3,7 +3,7 @@ package main
 import (
     "./network"
     "./driver"
-    "./communication"
+    "./com"
     "./elevator"
     "fmt"
 
@@ -11,19 +11,19 @@ import (
 
 
 func main() {
-    var elevatorEvent communication.ElevatorEvent
+    var elevatorEvent com.ElevatorEvent
     elevatorEvent.FloorReached = make(chan int)
     elevatorEvent.NewTargetFloor = make(chan int)
     elevatorEvent.StopButton = make(chan bool)
 
-    var slaveEvent communication.SlaveEvent
+    var slaveEvent com.SlaveEvent
     slaveEvent.CompletedFloor = make(chan int)
     slaveEvent.MissedDeadline = make(chan bool)
     slaveEvent.ButtonPressed = make(chan driver.OrderButton)
     slaveEvent.FromMaster = make(chan network.UDPMessage)
     slaveEvent.ToMaster = make(chan network.UDPMessage)
 
-    var masterEvent communication.MasterEvent
+    var masterEvent com.MasterEvent
     masterEvent.ToSlaves = make(chan network.UDPMessage)
     masterEvent.FromSlaves = make(chan network.UDPMessage)
 
