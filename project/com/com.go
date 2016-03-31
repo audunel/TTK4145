@@ -35,6 +35,7 @@ type Slave struct {
 	ID		network.ID
 	LastPassedFloor	int
 	HastTimedOut	bool
+	AliveTimer	*time.Timer `json:"-"
 }
 
 func EncodeMasterData(m MasterData) b []byte {
