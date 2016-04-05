@@ -14,9 +14,9 @@ const masterTimeoutPeriod   = 5 * time.Second
 const sendInterval          = 200 * time.Millisecond
 var myID                    = network.GetMyID()
 
-func InitClient(clientEvents    com.ClientEvents,
-                masterEvents    com.MasterEvents,
-                elevatorEvents  com.ElevatorEvents) {
+func InitSlave(slaveEvents    com.SlaveEvents,
+				masterEvents    com.MasterEvents,
+				elevatorEvents  com.ElevatorEvents) {
 
     fmt.Println("Awaiting master")
     sendTicker := time.NewTicker(sendInterval)
@@ -25,11 +25,11 @@ func InitClient(clientEvents    com.ClientEvents,
 
     for {
         select {
-        case message := <- clientEvents.FromMaster:
+        case message := <- slaveEvents.FromMaster:
             fmt.Println("Contacted by master")
             if len(orders) == 0 {
-                fmt.Printf("Initiating client, master %s\n", message.Address)
-                remainingOrders := clientLoop(clientEvents, masterEvents, elevatorEvents)
+                fmt.Printf("Initiating slave, master %s\n", message.Address)
+                remainingOrders := slaveLoop(slaveEvents, masterEvents, elevatorEvents)
 
                 fmt.Println("Waiting for new master")
                 for _, order := range(remainingOrders) {
@@ -40,11 +40,11 @@ func InitClient(clientEvents    com.ClientEvents,
                 handleOrders(orders, nil, myID, elevator.GetLastPassedFloor(), elevatorEvents.NewTargetFloor)
             }
 
-        case <- clientEvents.MissedDeadline:
+        case <- slaveEvents.MissedDeadline:
             driver.MotorStop()
             fmt.Println("Failed to complete order within deadline")
 
-        case floor := <- clientEvents.CompletedFloor:
+        case floor := <- slaveEvents.CompletedFloor:
             fmt.Printf("Completed floor %d\n", floor)
             for i := 0; i < len(orders); i++ {
                 order := orders[i]
@@ -54,7 +54,7 @@ func InitClient(clientEvents    com.ClientEvents,
             }
             handleOrders(orders, myID, elevator.GetLastPassedFloor(), elevatorEvents.NewTargetFloor)
 
-        case button := <- clientEvents.ButtonPressed:
+        case button := <- slaveEvents.ButtonPressed:
             if button.Type == driver.ButtonCallCommand {
                 orders = append(orders, com.Order {Button: button, TakenBy: myID})
                 handleOrders(orders, nil, myID, elevator.GetLastPassedFloor(), elevatorEvents.NewTargetFloor)
@@ -62,23 +62,23 @@ func InitClient(clientEvents    com.ClientEvents,
 
         case <- sendTicker.C:
             fmt.Println("Pinging")
-            data := com.ClientData {
+            data := com.SlaveData {
                 LastPassedFloor: elevator.GetLastPassedFloor(),
             }
-            clientEvents.ToMaster <- network.message {
-                Data: com.EncodeClientData(data),
+            slaveEvents.ToMaster <- network.message {
+                Data: com.EncodeSlaveData(data),
             }
         }
     }
 }
 
-func clientLoop(clientEvents    com.ClientEvents,
+func slaveLoop(slaveEvents    com.SlaveEvents,
                 masterEvents    com.MasterEvents,
                 elevatorEvents  com.ElevatorEvents) []com.Order {
 
     sendTicker := time.NewTicker(sendInterval)
 
-    clients     := make(map[network.ID]com.Client)
+    slaves     := make(map[network.ID]com.Slave)
     orders      := make([]com.Order, 0)
     requests    := make([]com.Order, 0)
 
@@ -89,29 +89,29 @@ func clientLoop(clientEvents    com.ClientEvents,
         case <- timer.After(masterTimeout):
             fmt.Println("Master timed out")
             if isBackup {
-                go master.InitMaster(masterEvents, orders, clients)
+                go master.InitMaster(masterEvents, orders, slaves)
             }
             return orders
 
-        case <- clientEvents.MissedDeadline:
+        case <- slaveEvents.MissedDeadline:
             driver.SetMotorDirection(Driver.DirnStop)
             fmt.Println("Failed to complete order within deadline")
 
         case <- sendTicker.C:
             fmt.Println("Sending..")
-            data := com.ClientData {
+            data := com.SlaveData {
                 LastPassedFloor:    elevator.GetLastPassedFloor(),
                 requests:           requests,
             }
-            clientEvents.ToMaster <- network.Message {
-                Data: com.EncodeClientData(data),
+            slaveEvents.ToMaster <- network.Message {
+                Data: com.EncodeSlaveData(data),
             }
 
-        case button := <- clientEvents.ButtonPressed:
+        case button := <- slaveEvents.ButtonPressed:
             fmt.Println("Button pressed")
             requests = append(requests, com.Order {Button: button})
 
-        case floor := <- clientEvents.CompletedFloor:
+        case floor := <- slaveEvents.CompletedFloor:
             fmt.Println("Completed floor")
             for _, order := range(orders) {
                 if order.TakenBy == myID && order.Button.Floor == floor {
@@ -120,13 +120,13 @@ func clientLoop(clientEvents    com.ClientEvents,
                 }
             }
 
-        case message := <- clientEvents.FromMaster:
+        case message := <- slaveEvents.FromMaster:
             data, err := com.DecodeMasterData(message)
             if err != nil {
                 break
             }
             fmt.Println("Message received")
-            clients = data.Clients
+            slaves = data.Slaves
             orders = data.Orders
             isBackup = (data.AssignedBackup == myID)
             handleOrders(orders, requests, myID, elevator.GetLastPassedFloor(), elevatorEvents.NewTargetFloor)
