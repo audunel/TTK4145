@@ -22,20 +22,20 @@ type Order struct {
 type SlaveData struct {
 	LastPassedFloor		int
 	CurrentDirection	driver.MotorDirection
-	Orders			[]Order
+	Orders				[]Order
 }
 
 type MasterData struct {
 	AssignedBackup	network.ID
-	Orders		[]Order
-	Slaves		map[network.ID]Slave
+	Orders			[]Order
+	Slaves			map[network.ID]Slave
 }
 
 type Slave struct {
-	ID		network.ID
+	ID				network.ID
 	LastPassedFloor	int
 	HastTimedOut	bool
-	AliveTimer	*time.Timer `json:"-"
+	AliveTimer		*time.Timer
 }
 
 func EncodeMasterData(m MasterData) b []byte {
@@ -75,12 +75,12 @@ type ElevatorEvent struct {
 type SlaveEvent struct {
 	CompletedFloor	chan int
 	MissedDeadline	chan bool
-	ButtonPressed	chan driver.OrderButton
+	ButtonPressed	chan OrderButton
 	FromMaster	chan network.UDPMessage
 	ToMaster	chan network.UDPMessage
 }
 
 type MasterEvent struct {
-	ToSlaves 	chan network.UDPMessage
+	ToSlaves	chan network.UDPMessage
 	FromSlaves	chan network.UDPMessage
 }
