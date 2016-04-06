@@ -15,7 +15,7 @@ const selfAsBackupDeadline = 10 * time.Second
 var myID = network.GetOwnID()
 
 func InitMaster(events com.MasterEvent,
-		initialQueue []com.Order,
+		initialQueue []order.Order,
 		initialSlaves map[network.ID]com.Slave) {
 
 	selfAsBackup := false
@@ -30,7 +30,7 @@ func InitMaster(events com.MasterEvent,
 			selfAsBackup = true
 
 		case message := <- events.FromSlave:
-			_, err := com.DecodeSlaveData(message.Data)
+			_, err := com.DecodeSlaveMessage(message.Data)
 			if err != nil {
 				break
 			}
@@ -47,14 +47,14 @@ func InitMaster(events com.MasterEvent,
 
 func masterLoop(events com.MasterEvent,
 		backup network.ID,
-		initialQueue []com.Order,
-		initialSlaves map[network.ID]com.Slave) ([]com.Order, map[network.ID]com.Slave) {
+		initialQueue []order.Order,
+		initialSlaves map[network.ID]com.Slave) ([]order.Order, map[network.ID]com.Slave) {
 
 	sendTicker := time.NewTicker(sendInterval)
 	slaveTimedOut := make(chan network.ID)
 
 	if initialQueue == nil {
-		orders := make([]com.Order, 0)
+		orders := make([]order.Order, 0)
 	} else {
 		orders := initialQueue
 	}
@@ -73,7 +73,7 @@ func masterLoop(events com.MasterEvent,
 		select {
 		case message := <- events.FromSlave:
 			senderID := message.Address
-			data, err := com.DecodeSlaveData(message.Data)
+			data, err := com.DecodeSlaveMessage(message.Data)
 			if err != nil {
 				break
 			}
@@ -145,13 +145,13 @@ func listenForTimeout(id network.ID, timer *time.Timer, timeout chan network.ID)
 	}
 }
 
-func updateOrders(requests, orders []com.Order) []com.Order {
+func updateOrders(requests, orders []order.Order) []order.Order {
 	orders = addNewOrders(requests, orders)
 	orders = removeDoneOrders(requests, orders)
 	return orders
 }
 
-func addNewOrders(requests, orders []com.Order) []com.Order {
+func addNewOrders(requests, orders []order.Order) []order.Order {
 	for _, r := range(requests) {
 		if queue.NewOrder(r, orders) {
 			orders = append(orders, r)
@@ -160,7 +160,7 @@ func addNewOrders(requests, orders []com.Order) []com.Order {
 	return orders
 }
 
-func removeDoneOrders(requests, orders []com.Order) []com.Order {
+func removeDoneOrders(requests, orders []order.Order) []order.Order {
 	for i := 0; i < len(orders); i++ {
 		for _, r := range(requests) {
 			if queue.SameOrder(orders[i], r) && r.Done {

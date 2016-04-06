@@ -21,7 +21,7 @@ func InitSlave(slaveEvents    com.SlaveEvents,
     fmt.Println("Awaiting master")
     sendTicker := time.NewTicker(sendInterval)
 
-    orders  := make([]com.Order, 0)
+    orders  := make([]order.Order, 0)
 
     for {
         select {
@@ -56,7 +56,7 @@ func InitSlave(slaveEvents    com.SlaveEvents,
 
         case button := <- slaveEvents.ButtonPressed:
             if button.Type == driver.ButtonCallCommand {
-                orders = append(orders, com.Order {Button: button, TakenBy: myID})
+                orders = append(orders, order.Order {Button: button, TakenBy: myID})
                 handleOrders(orders, nil, myID, elevator.GetLastPassedFloor(), elevatorEvents.NewTargetFloor)
             }
 
@@ -74,13 +74,13 @@ func InitSlave(slaveEvents    com.SlaveEvents,
 
 func slaveLoop(slaveEvents    com.SlaveEvents,
                 masterEvents    com.MasterEvents,
-                elevatorEvents  com.ElevatorEvents) []com.Order {
+                elevatorEvents  com.ElevatorEvents) []order.Order {
 
     sendTicker := time.NewTicker(sendInterval)
 
     slaves     := make(map[network.ID]com.Slave)
-    orders      := make([]com.Order, 0)
-    requests    := make([]com.Order, 0)
+    orders      := make([]order.Order, 0)
+    requests    := make([]order.Order, 0)
 
     isBackup := false
 
@@ -109,7 +109,7 @@ func slaveLoop(slaveEvents    com.SlaveEvents,
 
         case button := <- slaveEvents.ButtonPressed:
             fmt.Println("Button pressed")
-            requests = append(requests, com.Order {Button: button})
+            requests = append(requests, order.Order {Button: button})
 
         case floor := <- slaveEvents.CompletedFloor:
             fmt.Println("Completed floor")
@@ -121,7 +121,7 @@ func slaveLoop(slaveEvents    com.SlaveEvents,
             }
 
         case message := <- slaveEvents.FromMaster:
-            data, err := com.DecodeMasterData(message)
+            data, err := com.DecodeMasterMessage(message)
             if err != nil {
                 break
             }
@@ -131,7 +131,7 @@ func slaveLoop(slaveEvents    com.SlaveEvents,
             isBackup = (data.AssignedBackup == myID)
             handleOrders(orders, requests, myID, elevator.GetLastPassedFloor(), elevatorEvents.NewTargetFloor)
 
-func handleOrders(orders, requests []com.Order, ID network.ID, lastPassedFloor int, newTargetFloor chan int) {
+func handleOrders(orders, requests []order.Order, ID network.ID, lastPassedFloor int, newTargetFloor chan int) {
     delegation.PrioritizeForSingleElevator(orders, myID, lastPassedFloor)
     // TODO: Lamp control
     priority := queue.GetPriority(orders, myID)

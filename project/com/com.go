@@ -3,31 +3,21 @@ package com
 import (
 	"../driver"
 	"../network"
+	"../order"
 	"time"
 	"encoding/json"
 	"log"
 )
 
-type OrderButton struct {
-	Type	driver.ButtonType
-	Floor	int
-}
-
-type Order struct {
-	Button	driver.OrderButton
-	TakenBy	network.ID
-	Done	bool
-}
-
 type SlaveData struct {
 	LastPassedFloor		int
 	CurrentDirection	driver.MotorDirection
-	Orders				[]Order
+	Orders				[]order.Order
 }
 
 type MasterData struct {
 	AssignedBackup	network.ID
-	Orders			[]Order
+	Orders			order.Order
 	Slaves			map[network.ID]Slave
 }
 
@@ -46,7 +36,7 @@ func EncodeMasterData(m MasterData) b []byte {
 	return result
 }
 
-func DecodeMasterData(b []byte) (MasterData, error) {
+func DecodeMasterMessage(b []byte) (MasterData, error) {
 	var result MasterData
 	err := json.Unmarshal(b, &result)
 	return result, err
@@ -60,7 +50,7 @@ func EncodeSlaveData(s SlaveData) []byte {
 	return result
 }
 
-func DecodeSlaveData(b []byte) (SlaveData, error) {
+func DecodeSlaveMessage(b []byte) (SlaveData, error) {
 	var result SlaveData
 	err := json.Unmasrhsal(b, &result)
 	return result, err
@@ -69,15 +59,15 @@ func DecodeSlaveData(b []byte) (SlaveData, error) {
 type ElevatorEvent struct {
 	FloorReached	chan int
 	NewTargetFloor	chan int
-	StopButton	chan bool
+	StopButton		chan bool
 }
 
 type SlaveEvent struct {
 	CompletedFloor	chan int
 	MissedDeadline	chan bool
-	ButtonPressed	chan OrderButton
-	FromMaster	chan network.UDPMessage
-	ToMaster	chan network.UDPMessage
+	ButtonPressed	chan order.OrderButton
+	FromMaster		chan network.UDPMessage
+	ToMaster		chan network.UDPMessage
 }
 
 type MasterEvent struct {
