@@ -7,13 +7,13 @@ package driver
 */
 import "C"
 
-type MotorDirection int
+type motorDirection int
 type ButtonType int
 
 const (
-	DirnDown MotorDirection = -1
-	DirnStop MotorDirection = 0
-	DirnUp   MotorDirection = 1
+	dirnDown motorDirection = -1
+	dirnStop motorDirection = 0
+	dirnUp   motorDirection = 1
 
 	ButtonCallUp      ButtonType = 0
 	ButtonCallDown    ButtonType = 1
@@ -23,11 +23,46 @@ const (
 	NumButtons = int(C.N_BUTTONS)
 )
 
-func ElevInit() { C.elev_init() }
+func ElevInit() {
+	C.elev_init()
 
-func SetMotorDirection(dirn MotorDirection) {
+	ClearAllButtonLamps()
+	SetStopLamp(0)
+	SetDoorOpenLamp(0)
+
+	MotorDown()
+	for GetFloorSignal() != 0 {}
+	MotorStop()
+}
+
+func ClearAllButtonLamps() {
+	for floor := 0; floor < NumFloors; floor++ {
+		if floor < NumFloors - 1 {
+			SetButtonLamp(ButtonCallDown, floor, 0)
+		}
+		if floor > 0 {
+			SetButtonLamp(ButtonCallUp, floor, 0)
+		}
+		SetButtonLamp(ButtonCallCommand, floor, 0)
+	}
+}
+
+func setMotorDirection(dirn motorDirection) {
 	C.elev_set_motor_direction(C.elev_motor_direction_t(dirn))
 }
+
+func MotorDown() {
+	setMotorDirection(dirnDown)
+}
+
+func MotorStop() {
+	setMotorDirection(dirnStop)
+}
+
+func MotorUp() {
+	setMotorDirection(dirnUp)
+}
+
 func SetButtonLamp(button ButtonType, floor, value int) {
 	C.elev_set_button_lamp(C.elev_button_type_t(button), C.int(floor), C.int(value))
 }

@@ -94,7 +94,7 @@ func slaveLoop(slaveEvents    com.SlaveEvents,
             return orders
 
         case <- slaveEvents.MissedDeadline:
-            driver.SetMotorDirection(Driver.DirnStop)
+            driver.MotorStop()
             fmt.Println("Failed to complete order within deadline")
 
         case <- sendTicker.C:
