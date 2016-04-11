@@ -59,7 +59,6 @@ func DecodeSlaveMessage(b []byte) (SlaveData, error) {
 type ElevatorEvent struct {
 	FloorReached	chan int
 	NewTargetFloor	chan int
-	StopButton		chan bool
 }
 
 type SlaveEvent struct {

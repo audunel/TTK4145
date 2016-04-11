@@ -24,9 +24,7 @@ func Init(
 		completedFloor	chan <- int,
 		missedDeadline	chan <- bool,
 		floorReached	<- chan int,
-		newTargetFloor	<- chan int,
-		stopButton		<- chan bool,
-		obstruction		<- chan bool) {
+		newTargetFloor	<- chan int) {
 
 	deadlineTimer := time.NewTimer(deadlinePeriod)
 	deadlineTimer.stop()
