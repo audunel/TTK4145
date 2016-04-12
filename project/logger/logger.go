@@ -6,9 +6,9 @@ import (
 	"io"
 )
 
-func NewLogger(prefix string) log.Logger {
+func NewLogger(prefix string) *log.Logger {
 	fileFlag := os.O_RDWR | os.O_CREATE | os.O_APPEND
-	file, err := os.OpenFile("log.txt", os.O_RDWR | os.O_CREATE | os.O_APPEND, 0666)
+	file, err := os.OpenFile("log.txt", fileFlag, 0666)
 	if err != nil {
 		panic(err)
 	}

@@ -1,20 +1,15 @@
-package queue
+package order
 
 import (
 	"../driver"
 	"../network"
-	"fmt"
 )
 
-type OrderButton struct {
-	Type	driver.ButtonType
-	Floor	int
-}
-
 type Order struct {
-	Button	driver.OrderButton
-	TakenBy	network.IP
-	Done	bool
+	Button	 driver.OrderButton
+	TakenBy	 network.IP
+	Done	 bool
+	Priority bool
 }
 
 func OrdersEqual(order1, order2 Order) bool {
@@ -33,7 +28,7 @@ func OrderNew(request Order, orders []Order) bool {
 
 func GetPriority(orders []Order, ip network.IP) *Order {
 	for _, order := range(orders) {
-		if order.TakenBy == id && order.Priority {
+		if order.TakenBy == ip && order.Priority {
 			return &order
 		}
 	}

@@ -7,19 +7,24 @@ package driver
 */
 import "C"
 
-type motorDirection int
+type MotorDirection int
 const (
-	dirnDown	motorDirection = -1
-	dirnStop	motorDirection = 0
-	dirnUp		motorDirection = 1
+	DirnDown	MotorDirection = -1
+	DirnStop	MotorDirection = 0
+	DirnUp		MotorDirection = 1
 )
 
-type ButtonType
+type ButtonType int
 const (
 	ButtonCallUp		ButtonType = 0
 	ButtonCallDown		ButtonType = 1
 	ButtonCallCommand	ButtonType = 2
 )
+
+type OrderButton struct {
+	Type	ButtonType
+	Floor	int
+}
 
 const (
 	NumFloors  = int(C.N_FLOORS)
@@ -39,9 +44,9 @@ func ElevInit() {
 	MotorStop()
 }
 
-func EventListener(buttonEvent chan order.OrderButton, floorEvent chan int) {
+func EventListener(buttonEvent chan OrderButton, floorEvent chan int) {
 	buttonWasActive := make(map[ButtonType][NumFloors]bool)
-	var buttonSignal int
+	var buttonSignal, floorSignal int
 
 	lastPassedFloor := -1
 
@@ -52,7 +57,7 @@ func EventListener(buttonEvent chan order.OrderButton, floorEvent chan int) {
 		}
 		
 		for floor := 0; floor < NumFloors; floor++ {
-			for button := 0; button < NumButtons; button++ {
+			for button := ButtonCallUp; int(button) < NumButtons; button++ {
 				if (floor == 0) && (button == ButtonCallDown) {
 					continue
 				}
@@ -60,10 +65,12 @@ func EventListener(buttonEvent chan order.OrderButton, floorEvent chan int) {
 					continue
 				}
 				buttonSignal = GetButtonSignal(button, floor)
-				if (buttonSignal == 1) && !wasActive[button][floor] {
-					buttonEvent <- order.OrderButton{Type=button, Floor=floor}
+				if (buttonSignal == 1) && !buttonWasActive[button][floor] {
+					buttonEvent <- OrderButton{Type: button, Floor: floor}
 				}
-				wasActive[button][floor] = (buttonSignal == 1)
+				floorList := buttonWasActive[button]
+				floorList[floor] = (buttonSignal == 1)
+				buttonWasActive[button] = floorList
 			}
 		}
 	}
@@ -81,20 +88,20 @@ func ClearAllButtonLamps() {
 	}
 }
 
-func setMotorDirection(dirn motorDirection) {
+func setMotorDirection(dirn MotorDirection) {
 	C.elev_set_motor_direction(C.elev_motor_direction_t(dirn))
 }
 
-func MotorDown() {
-	setMotorDirection(dirnDown)
+func MotorUp() {
+	setMotorDirection(DirnUp)
 }
 
 func MotorStop() {
-	setMotorDirection(dirnStop)
+	setMotorDirection(DirnStop)
 }
 
-func MotorUp() {
-	setMotorDirection(dirnUp)
+func MotorDown() {
+	setMotorDirection(DirnDown)
 }
 
 func SetButtonLamp(button ButtonType, floor, value int) {

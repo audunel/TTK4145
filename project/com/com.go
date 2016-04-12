@@ -1,9 +1,9 @@
 package com
 
 import (
-	"../driver"
 	"../network"
 	"../order"
+	"../driver"
 	"time"
 	"encoding/json"
 	"log"
@@ -11,24 +11,23 @@ import (
 
 type SlaveData struct {
 	LastPassedFloor		int
-	CurrentDirection	driver.MotorDirection
-	Orders				[]order.Order
+	Requests			[]order.Order
 }
 
 type MasterData struct {
 	AssignedBackup	network.IP
-	Orders			order.Order
+	Orders			[]order.Order
 	Slaves			map[network.IP]Slave
 }
 
 type Slave struct {
 	IP				network.IP
 	LastPassedFloor	int
-	HastTimedOut	bool
+	HasTimedOut	bool
 	AliveTimer		*time.Timer
 }
 
-func EncodeMasterData(m MasterData) b []byte {
+func EncodeMasterData(m MasterData) []byte {
 	result, err := json.Marshal(m)
 	if err != nil {
 		log.Fatal(err)
@@ -52,7 +51,7 @@ func EncodeSlaveData(s SlaveData) []byte {
 
 func DecodeSlaveMessage(b []byte) (SlaveData, error) {
 	var result SlaveData
-	err := json.Unmasrhsal(b, &result)
+	err := json.Unmarshal(b, &result)
 	return result, err
 }
 
@@ -64,7 +63,7 @@ type ElevatorEvent struct {
 type SlaveEvent struct {
 	CompletedFloor	chan int
 	MissedDeadline	chan bool
-	ButtonPressed	chan order.OrderButton
+	ButtonPressed	chan driver.OrderButton
 	FromMaster		chan network.UDPMessage
 	ToMaster		chan network.UDPMessage
 }

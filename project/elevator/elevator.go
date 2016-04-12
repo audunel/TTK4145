@@ -3,18 +3,20 @@ package elevator
 import (
 	"../driver"
 	"time"
+	"fmt"
 )
 
-const deadlinePeriod	= 5 * driver.NumFloors * time.Second
+const deadlinePeriod	= time.Duration(5 * driver.NumFloors) * time.Second
 const doorPeriod		= 3 * time.Second
+
 var lastPassedFloor int
 
 type state int
-const {
+const (
 	idle state = iota
 	doorOpen
 	moving
-}
+)
 
 func GetLastPassedFloor() int {
 	return lastPassedFloor
@@ -27,14 +29,14 @@ func Init(
 		newTargetFloor	<- chan int) {
 
 	deadlineTimer := time.NewTimer(deadlinePeriod)
-	deadlineTimer.stop()
+	deadlineTimer.Stop()
 
 	doorTimer := time.NewTimer(doorPeriod)
 	doorTimer.Stop()
 
 	state := idle
-	lastPassedFloor = 0
-	targetFloor = -1
+	lastPassedFloor := 0
+	targetFloor := -1
 
 	for {
 		select {
@@ -43,7 +45,6 @@ func Init(
 
 		case <- doorTimer.C:
 			switch state {
-
 				case doorOpen:
 					fmt.Println("Door timer, state at doorOpen")
 					driver.SetDoorOpenLamp(0)
@@ -109,12 +110,6 @@ func Init(
 				case doorOpen:
 					fmt.Println("Reached floor %d, state at doorOpen\n", floor)
 			}
-
-		case <- stopButton:
-			// Functionality not implemented
-
-		case <- obstruction:
-			// Functionality not implemented
 		}
 	}
 }

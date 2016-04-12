@@ -3,7 +3,9 @@ package master
 import (
 	"../com"
 	"../network"
+	"../order"
 	"../driver"
+	"../delegation"
 	"time"
 	"fmt"
 	"log"
@@ -29,7 +31,7 @@ func InitMaster(events com.MasterEvent,
 		case <- time.After(selfAsBackupDeadline):
 			selfAsBackup = true
 
-		case message := <- events.FromSlave:
+		case message := <- events.FromSlaves:
 			_, err := com.DecodeSlaveMessage(message.Data)
 			if err != nil {
 				break
@@ -53,15 +55,14 @@ func masterLoop(events com.MasterEvent,
 	sendTicker := time.NewTicker(sendInterval)
 	slaveTimedOut := make(chan network.IP)
 
-	if initialQueue == nil {
-		orders := make([]order.Order, 0)
-	} else {
-		orders := initialQueue
+	orders := make([]order.Order, 0)
+	if initialQueue != nil {
+		orders = initialQueue
 	}
 
 	slaves := make(map[network.IP]com.Slave)
 	if initialSlaves != nil {
-		for _, s := range(intialSlaves) {
+		for _, s := range(initialSlaves) {
 			s.AliveTimer = time.NewTimer(slaveTimeoutPeriod)
 			slaves[s.IP] = s
 			go listenForTimeout(s.IP, s.AliveTimer, slaveTimedOut)
@@ -71,7 +72,7 @@ func masterLoop(events com.MasterEvent,
 	fmt.Printf("Initiating master with backup %s\n", backup)
 	for {
 		select {
-		case message := <- events.FromSlave:
+		case message := <- events.FromSlaves:
 			senderIP := message.Address
 			data, err := com.DecodeSlaveMessage(message.Data)
 			if err != nil {
@@ -91,7 +92,7 @@ func masterLoop(events com.MasterEvent,
 					IP:		senderIP,
 					AliveTimer:	aliveTimer,
 				}
-				go listenForTimeout(slave, aliveTimer, slaveTimedOut)
+				go listenForTimeout(slave.IP, aliveTimer, slaveTimedOut)
 			}
 
 			slave.AliveTimer.Reset(slaveTimeoutPeriod)
@@ -101,7 +102,7 @@ func masterLoop(events com.MasterEvent,
 
 			orders = updateOrders(data.Requests, orders, senderIP)
 
-		case sendTicker.C:
+		case <- sendTicker.C:
 			fmt.Println("Sending to slaves")
 			err := delegation.DelegateWork(slaves, orders)
 			if err != nil {
@@ -110,13 +111,13 @@ func masterLoop(events com.MasterEvent,
 
 			data := com.MasterData {
 				AssignedBackup: backup,
-				Orders:		orders,
-				Slaves:		slaves,
+				Orders:			orders,
+				Slaves:			slaves,
 			}
 
-			events.ToSlaves <- network.Message {
-				Address:	myIP
-				Data:		com.EncodeMasterData(data)
+			events.ToSlaves <- network.UDPMessage {
+				Address:	myIP,
+				Data:		com.EncodeMasterData(data),
 			}
 
 		case slaveIP := <- slaveTimedOut:
@@ -124,7 +125,7 @@ func masterLoop(events com.MasterEvent,
 			slave, exists := slaves[slaveIP]
 			if exists {
 				slave.HasTimedOut = true
-				slave[slaveIP] = slave
+				slaves[slaveIP] = slave
 				err := delegation.DelegateWork(slaves, orders)
 				if err != nil {
 					log.Fatal(err)
@@ -134,27 +135,31 @@ func masterLoop(events com.MasterEvent,
 				return orders, slaves // Return current state and await new backup
 			}
 		}
+	}
 }
 
-func listenForTimeout(id network.IP, timer *time.Timer, timeout chan network.IP) {
+func listenForTimeout(ip network.IP, timer *time.Timer, timeout chan network.IP) {
 	for {
 		select {
 		case <- timer.C:
-			timeout <- id
+			timeout <- ip
 		}
 	}
 }
 
-func updateOrders(requests, orders []order.Order) []order.Order {
-	orders = addNewOrders(requests, orders)
+func updateOrders(requests, orders []order.Order, sender network.IP) []order.Order {
+	orders = addNewOrders(requests, orders, sender)
 	orders = removeDoneOrders(requests, orders)
 	return orders
 }
 
-func addNewOrders(requests, orders []order.Order) []order.Order {
-	for _, r := range(requests) {
-		if queue.NewOrder(r, orders) {
-			orders = append(orders, r)
+func addNewOrders(requests, orders []order.Order, sender network.IP) []order.Order {
+	for _, request := range(requests) {
+		if request.Button.Type == driver.ButtonCallCommand {
+			request.TakenBy = sender
+		}
+		if order.OrderNew(request, orders) {
+			orders = append(orders, request)
 		}
 	}
 	return orders
@@ -162,13 +167,13 @@ func addNewOrders(requests, orders []order.Order) []order.Order {
 
 func removeDoneOrders(requests, orders []order.Order) []order.Order {
 	for i := 0; i < len(orders); i++ {
-		for _, r := range(requests) {
-			if queue.SameOrder(orders[i], r) && r.Done {
+		for _, request := range(requests) {
+			if order.OrdersEqual(orders[i], request) && request.Done {
 				orders[i].Done = true
 			}
 		}
 		if orders[i].Done {
-			orders = append(orders[:i], orders[i+1]...)
+			orders = append(orders[:i], orders[i+1:]...)
 			i--
 		}
 	}

@@ -1,4 +1,4 @@
-package cleitn
+package slave
 
 import (
     "../driver"
@@ -6,17 +6,20 @@ import (
     "../com"
     "../master"
     "../elevator"
+	"../order"
+	"../delegation"
     "time"
     "fmt"
 )
 
-const masterTimeoutPeriod   = 5 * time.Second
-const sendInterval          = 200 * time.Millisecond
-var myIP                    = network.GetMyIP()
+const masterTimeout	= 5 * time.Second
+const sendInterval	= 200 * time.Millisecond
+var myIP			= network.GetOwnIP()
 
-func InitSlave(slaveEvents    com.SlaveEvents,
-				masterEvents    com.MasterEvents,
-				elevatorEvents  com.ElevatorEvents) {
+func InitSlave(
+		slaveEvents		com.SlaveEvent,
+		masterEvents    com.MasterEvent,
+		elevatorEvents  com.ElevatorEvent) {
 
     fmt.Println("Awaiting master")
     sendTicker := time.NewTicker(sendInterval)
@@ -27,7 +30,7 @@ func InitSlave(slaveEvents    com.SlaveEvents,
         select {
         case message := <- slaveEvents.FromMaster:
             fmt.Println("Contacted by master")
-            if len(orders) == 0 {
+            if len(orders) == 0 {
                 fmt.Printf("Initiating slave, master %s\n", message.Address)
                 remainingOrders := slaveLoop(slaveEvents, masterEvents, elevatorEvents)
 
@@ -52,7 +55,7 @@ func InitSlave(slaveEvents    com.SlaveEvents,
                     orders = append(orders[:i], orders[i+1:]...)
                 }
             }
-            handleOrders(orders, myIP, elevator.GetLastPassedFloor(), elevatorEvents.NewTargetFloor)
+            handleOrders(orders, nil, myIP, elevator.GetLastPassedFloor(), elevatorEvents.NewTargetFloor)
 
         case button := <- slaveEvents.ButtonPressed:
             if button.Type == driver.ButtonCallCommand {
@@ -65,20 +68,21 @@ func InitSlave(slaveEvents    com.SlaveEvents,
             data := com.SlaveData {
                 LastPassedFloor: elevator.GetLastPassedFloor(),
             }
-            slaveEvents.ToMaster <- network.message {
+            slaveEvents.ToMaster <- network.UDPMessage {
                 Data: com.EncodeSlaveData(data),
             }
         }
     }
 }
 
-func slaveLoop(slaveEvents    com.SlaveEvents,
-                masterEvents    com.MasterEvents,
-                elevatorEvents  com.ElevatorEvents) []order.Order {
+func slaveLoop(
+		slaveEvents		com.SlaveEvent,
+		masterEvents    com.MasterEvent,
+		elevatorEvents  com.ElevatorEvent) []order.Order {
 
     sendTicker := time.NewTicker(sendInterval)
 
-    slaves     := make(map[network.IP]com.Slave)
+    slaves		:= make(map[network.IP]com.Slave)
     orders      := make([]order.Order, 0)
     requests    := make([]order.Order, 0)
 
@@ -86,7 +90,7 @@ func slaveLoop(slaveEvents    com.SlaveEvents,
 
     for {
         select {
-        case <- timer.After(masterTimeout):
+        case <- time.After(masterTimeout):
             fmt.Println("Master timed out")
             if isBackup {
                 go master.InitMaster(masterEvents, orders, slaves)
@@ -101,9 +105,9 @@ func slaveLoop(slaveEvents    com.SlaveEvents,
             fmt.Println("Sending..")
             data := com.SlaveData {
                 LastPassedFloor:    elevator.GetLastPassedFloor(),
-                requests:           requests,
+                Requests:           requests,
             }
-            slaveEvents.ToMaster <- network.Message {
+            slaveEvents.ToMaster <- network.UDPMessage {
                 Data: com.EncodeSlaveData(data),
             }
 
@@ -121,7 +125,7 @@ func slaveLoop(slaveEvents    com.SlaveEvents,
             }
 
         case message := <- slaveEvents.FromMaster:
-            data, err := com.DecodeMasterMessage(message)
+            data, err := com.DecodeMasterMessage(message.Data)
             if err != nil {
                 break
             }
@@ -130,12 +134,24 @@ func slaveLoop(slaveEvents    com.SlaveEvents,
             orders = data.Orders
             isBackup = (data.AssignedBackup == myIP)
             handleOrders(orders, requests, myIP, elevator.GetLastPassedFloor(), elevatorEvents.NewTargetFloor)
+		}
+	}
+}
 
 func handleOrders(orders, requests []order.Order, IP network.IP, lastPassedFloor int, newTargetFloor chan int) {
     delegation.PrioritizeForSingleElevator(orders, myIP, lastPassedFloor)
     // TODO: Lamp control
-    priority := queue.GetPriority(orders, myIP)
-    if priority != nil && !queue.OrderDone(*priority, requests) {
-        newTargetFloor <- priority.Button.Floor
-    }
+    priority := order.GetPriority(orders, myIP)
+    if priority != nil {
+		if requests == nil {
+	        newTargetFloor <- priority.Button.Floor
+		} else {
+			for _, request := range(requests) {
+				if order.OrdersEqual(*priority, request) {
+					newTargetFloor <- priority.Button.Floor
+					break
+				}
+			}
+		}
+	}
 }
