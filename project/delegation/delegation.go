@@ -8,7 +8,7 @@ import (
 	"fmt"
 )
 
-func DistributeWork(slaves map[network.ID]com.Slave, orders []order.Order) error {
+func DistributeWork(slaves map[network.IP]com.Slave, orders []order.Order) error {
 	for i, order := range(orders) {
 		if	(order.ButtonType != driver.ButtonCallCommand) &&
 			(order.TakenBy == "" ||
@@ -30,7 +30,7 @@ func DistributeWork(slaves map[network.ID]com.Slave, orders []order.Order) error
 	return nil
 }
 
-func PrioritizeForSingleElevator(orders []order.Order, id network.ID, lastPassedFloor int) {
+func PrioritizeForSingleElevator(orders []order.Order, id network.IP, lastPassedFloor int) {
 	targetFloor 	:= -1
 	currentPriority := -1
 	for i, order := range(orders) {
@@ -59,9 +59,9 @@ func distanceSquared(x, y int) int {
 	return (x - y) * (x - y)
 }
 
-func closestElevator(slaves map[network.ID]com.Slave, floor int) network.ID {
+func closestElevator(slaves map[network.IP]com.Slave, floor int) network.IP {
 	currentDistance	:= driver.NumFloors * driver.NumFloors
-	currentID		:= ""
+	currentIP		:= ""
 
 	var distance int
 	for id, slave := range(slaves) {
@@ -71,13 +71,13 @@ func closestElevator(slaves map[network.ID]com.Slave, floor int) network.ID {
 		distance = distanceSquared(slave.LastPassedFloor, floor)
 		if distance < currentDistance {
 			currentDistance = distanceFloor
-			currentID		= id
+			currentIP		= id
 		}
 	}
-	return closestID
+	return closestIP
 }
 
-func closestNear(owner network.ID, orders []order.Order, floor int) int {
+func closestNear(owner network.IP, orders []order.Order, floor int) int {
 	currentIndex	:= -1
 	currentDistance	:= -1
 

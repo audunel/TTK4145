@@ -9,6 +9,10 @@ import (
 	"./logger"
 )
 
+const (
+	masterPort	= 20001
+	slavePor	= 20002
+
 func main() {
 	var startAsMaster bool
 	flag.BoolVar(&startAsMaster, "master", false, "Start as master")
@@ -42,9 +46,9 @@ func main() {
 				elevatorEvents.NewTargetFloor)
 
 	if startAsMaster {
-		go network.UDPInit(...)
+		go network.UDPInit(masterPort, slavePort, masterEvents.ToSlaves, masterEvents.FromSlaves)
 		go master.InitMaster(masterEvents, nil, nil)
 	}
-	go network.UDPInit(...)
-	go slave.InitSlave(slaveEvents, masterEvents, elevatorEvents)
+	go network.UDPInit(slavePort, masterPort, slaveEvents.FromMaster, slaveEvents.ToMaster)
+	slave.InitSlave(slaveEvents, masterEvents, elevatorEvents)
 }

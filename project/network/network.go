@@ -1,98 +1,77 @@
 package network
 
 import (
-	"fmt"
 	"net"
 	"log"
-	"strconv"
 )
 
-var laddr, baddr *net.UDPAddr
+type IP string
 
 type UDPMessage struct {
-	Raddr	string
+	Address IP
 	Data	[]byte
 	Length	int
 }
 
-func UDPInit(localListenPort, broadcastListenPort, msgSize int, sendCh, receiveCh chan UDPMessage) (err error) {
-	baddr, err = net.ResolveUDPAddr("udp4", "255.255.255.255:"+strconv.Itoa(broadcastListenPort))
+func GetOwnIP() IP {
+	ifaces, err := net.Interfaces()
 	if err != nil {
-		return err
+		log.Fatal(err)
 	}
-
-	tempConn, err := net.DialUDP("udp4", nil, baddr)
-	defer tempConn.Close()
-	tempAddr := tempConn.LocalAddr()
-	laddr, err := net.ResolveUDPAddr("udp4", tempAddr.String())
-	laddr.Port = localListenPort
-
-	fmt.Println(laddr)
-
-	localListenConn, err := net.ListenUDP("udp4", laddr)
-	if err != nil {
-		return err
-	}
-
-	broadcastListenConn, err := net.ListenUDP("udp", baddr)
-	if err != nil {
-		localListenConn.Close()
-		return err
-	}
-
-	go udpReceiveServer(localListenConn, broadcastListenConn, msgSize, receiveCh)
-	go udpTransmitServer(localListenConn, broadcastListenConn, sendCh)
-
-	return err
-}
-
-func udpTransmitServer(lconn, bconn *net.UDPConn, sendCh chan UDPMessage) {
-	var err error
-
-	for {
-		msg := <-sendCh
-		if msg.Raddr == "broadcast" {
-			_, err = lconn.WriteToUDP(msg.Data, baddr)
-		} else {
-			raddr, err := net.ResolveUDPAddr("udp", msg.Raddr)
-			if err != nil {
-				log.Fatal(err)
-				panic(err)
+	for _, i := range ifaces {
+		addrs, err := i.Addrs()
+		if err != nil {
+			log.Fatal(err)
+		}
+		for _, addr := range addrs {
+			if ipnet, ok := addr.(*net.IPNet); ok && !ipnet.IP.IsLoopback() {
+				if ipnet.IP.To4() != nil {
+					return IP(ipnet.IP.String())
+				}
 			}
-			_, err = lconn.WriteToUDP(msg.Data, raddr)
 		}
+	}
+	return "127.0.0.1"
+}	
+
+func UDPInit(localPort, broadcastPort string, sendChannel, receiveChannel chan UDPMessage) {
+	laddr, err := net.ResolveUDPAddr("udp", ":"+localPort)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	conn, err := net.ListenUDP("udp", laddr)
+	if err != nil {
+		log.Fatal(err)
+	}
+	defer conn.Close()
+
+	go listenServer(conn, receiveChannel)
+	broadcastServer(conn, broadcastPort, sendChannel)
+}
+
+func listenServer(conn *net.UDPConn, receiveChannel chan UDPMessage) {
+	for {
+		buf := make([]byte, 1024)
+		len, raddr, err := conn.ReadFromUDP(buf)
 		if err != nil {
 			log.Fatal(err)
-			panic(err)
 		}
+		receiveChannel <- UDPMessage{Address: IP(raddr.String()), Data: buf[:len], Length: len}
 	}
 }
 
-func udpReceiveServer(lconn, bconn *net.UDPConn, msgSize int, receiveCh chan UDPMessage) {
-	bconnReceiveCh := make(chan UDPMessage)
-	lconnReceiveCh := make(chan UDPMessage)
-
-	go udpConnectionReader(lconn, msgSize, lconnReceiveCh)
-	go udpConnectionReader(bconn, msgSize, bconnReceiveCh)
-
-	for {
-		select {
-		case buf := <-bconnReceiveCh:
-			receiveCh <- buf
-		case buf := <-lconnReceiveCh:
-			receiveCh <- buf
-		}
+func broadcastServer(conn *net.UDPConn, port string, sendChannel chan UDPMessage) {
+	baddr, err := net.ResolveUDPAddr("udp", "255.255.255.255:"+port)
+	if err != nil {
+		log.Fatal(err)
 	}
-}
 
-func udpConnectionReader(conn *net.UDPConn, msgSize int, receiveCh chan UDPMessage) {
 	for {
-		buf := make([]byte, msgSize)
-		n, raddr, err := conn.ReadFromUDP(buf)
+		message := <- sendChannel
+		_, err := conn.WriteToUDP(message.Data, baddr)
 		if err != nil {
 			log.Fatal(err)
-			panic(err)
 		}
-		receiveCh <- UDPMessage{Raddr: raddr.String(), Data: buf[:n], Length: n}
 	}
 }

@@ -5,28 +5,25 @@ import (
 	"../network"
 	"fmt"
 	"time"
-	"log"
 )
 
-var localIP = network.GetOwnID()
+var localIP = network.GetOwnIP()
 
 func printUDPMessage(msg network.UDPMessage) {
-	fmt.Printf("msg: \n\t raddr = %s \n\t data = %s \n\t length = %v\n", msg.Raddr, string(msg.Data), msg.Length)
+	fmt.Printf("msg: \n\t raddr = %s \n\t data = %s \n\t length = %v\n", msg.Address, string(msg.Data), msg.Length)
 }
 
 func main() {
 	sendCh := make(chan network.UDPMessage)
 	receiveCh := make(chan network.UDPMessage)
 
-	err := network.UDPInit(20001, 20002, 1024, sendCh, receiveCh)
-	if err != nil {
-		log.Fatal(err)
-	}
+	go network.UDPInit("20001", "20001", sendCh, receiveCh)
 
 	for {
 		time.Sleep(1 * time.Second)
 
-		msg := network.UDPMessage{Raddr: string(localIP)+":20001", Data: []byte("Hello me!"), Length:9}
+		msgText := "Hello me!"
+		msg := network.UDPMessage{Address: localIP, Data: []byte(msgText), Length:len(msgText)}
 		fmt.Println("Sending------")
 		sendCh <- msg
 		printUDPMessage(msg)

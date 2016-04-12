@@ -13,7 +13,7 @@ type OrderButton struct {
 
 type Order struct {
 	Button	driver.OrderButton
-	TakenBy	network.ID
+	TakenBy	network.IP
 	Done	bool
 }
 
@@ -31,7 +31,7 @@ func OrderNew(request Order, orders []Order) bool {
 	return true
 }
 
-func GetPriority(orders []Order, id network.ID) *Order {
+func GetPriority(orders []Order, ip network.IP) *Order {
 	for _, order := range(orders) {
 		if order.TakenBy == id && order.Priority {
 			return &order

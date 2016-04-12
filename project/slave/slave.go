@@ -12,7 +12,7 @@ import (
 
 const masterTimeoutPeriod   = 5 * time.Second
 const sendInterval          = 200 * time.Millisecond
-var myID                    = network.GetMyID()
+var myIP                    = network.GetMyIP()
 
 func InitSlave(slaveEvents    com.SlaveEvents,
 				masterEvents    com.MasterEvents,
@@ -33,11 +33,11 @@ func InitSlave(slaveEvents    com.SlaveEvents,
 
                 fmt.Println("Waiting for new master")
                 for _, order := range(remainingOrders) {
-                    if order.TakenBy == myID {
+                    if order.TakenBy == myIP {
                         orders = append(orders, order)
                     }
                 }
-                handleOrders(orders, nil, myID, elevator.GetLastPassedFloor(), elevatorEvents.NewTargetFloor)
+                handleOrders(orders, nil, myIP, elevator.GetLastPassedFloor(), elevatorEvents.NewTargetFloor)
             }
 
         case <- slaveEvents.MissedDeadline:
@@ -48,16 +48,16 @@ func InitSlave(slaveEvents    com.SlaveEvents,
             fmt.Printf("Completed floor %d\n", floor)
             for i := 0; i < len(orders); i++ {
                 order := orders[i]
-                if order.TakenBy == myID && order.Button.Floor == floor {
+                if order.TakenBy == myIP && order.Button.Floor == floor {
                     orders = append(orders[:i], orders[i+1:]...)
                 }
             }
-            handleOrders(orders, myID, elevator.GetLastPassedFloor(), elevatorEvents.NewTargetFloor)
+            handleOrders(orders, myIP, elevator.GetLastPassedFloor(), elevatorEvents.NewTargetFloor)
 
         case button := <- slaveEvents.ButtonPressed:
             if button.Type == driver.ButtonCallCommand {
-                orders = append(orders, order.Order {Button: button, TakenBy: myID})
-                handleOrders(orders, nil, myID, elevator.GetLastPassedFloor(), elevatorEvents.NewTargetFloor)
+                orders = append(orders, order.Order {Button: button, TakenBy: myIP})
+                handleOrders(orders, nil, myIP, elevator.GetLastPassedFloor(), elevatorEvents.NewTargetFloor)
             }
 
         case <- sendTicker.C:
@@ -78,7 +78,7 @@ func slaveLoop(slaveEvents    com.SlaveEvents,
 
     sendTicker := time.NewTicker(sendInterval)
 
-    slaves     := make(map[network.ID]com.Slave)
+    slaves     := make(map[network.IP]com.Slave)
     orders      := make([]order.Order, 0)
     requests    := make([]order.Order, 0)
 
@@ -114,7 +114,7 @@ func slaveLoop(slaveEvents    com.SlaveEvents,
         case floor := <- slaveEvents.CompletedFloor:
             fmt.Println("Completed floor")
             for _, order := range(orders) {
-                if order.TakenBy == myID && order.Button.Floor == floor {
+                if order.TakenBy == myIP && order.Button.Floor == floor {
                     order.Done = true
                     requests = append(requests, order)
                 }
@@ -128,13 +128,13 @@ func slaveLoop(slaveEvents    com.SlaveEvents,
             fmt.Println("Message received")
             slaves = data.Slaves
             orders = data.Orders
-            isBackup = (data.AssignedBackup == myID)
-            handleOrders(orders, requests, myID, elevator.GetLastPassedFloor(), elevatorEvents.NewTargetFloor)
+            isBackup = (data.AssignedBackup == myIP)
+            handleOrders(orders, requests, myIP, elevator.GetLastPassedFloor(), elevatorEvents.NewTargetFloor)
 
-func handleOrders(orders, requests []order.Order, ID network.ID, lastPassedFloor int, newTargetFloor chan int) {
-    delegation.PrioritizeForSingleElevator(orders, myID, lastPassedFloor)
+func handleOrders(orders, requests []order.Order, IP network.IP, lastPassedFloor int, newTargetFloor chan int) {
+    delegation.PrioritizeForSingleElevator(orders, myIP, lastPassedFloor)
     // TODO: Lamp control
-    priority := queue.GetPriority(orders, myID)
+    priority := queue.GetPriority(orders, myIP)
     if priority != nil && !queue.OrderDone(*priority, requests) {
         newTargetFloor <- priority.Button.Floor
     }

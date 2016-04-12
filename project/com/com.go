@@ -16,13 +16,13 @@ type SlaveData struct {
 }
 
 type MasterData struct {
-	AssignedBackup	network.ID
+	AssignedBackup	network.IP
 	Orders			order.Order
-	Slaves			map[network.ID]Slave
+	Slaves			map[network.IP]Slave
 }
 
 type Slave struct {
-	ID				network.ID
+	IP				network.IP
 	LastPassedFloor	int
 	HastTimedOut	bool
 	AliveTimer		*time.Timer
