@@ -3,7 +3,7 @@ package elevator
 import (
 	"../driver"
 	"time"
-	"fmt"
+	"log"
 )
 
 const deadlinePeriod	= time.Duration(5 * driver.NumFloors) * time.Second
@@ -26,7 +26,8 @@ func Init(
 		completedFloor	chan <- int,
 		missedDeadline	chan <- bool,
 		floorReached	<- chan int,
-		newTargetFloor	<- chan int) {
+		newTargetFloor	<- chan int,
+		elevLogger		log.Logger) {
 
 	deadlineTimer := time.NewTimer(deadlinePeriod)
 	deadlineTimer.Stop()
@@ -46,16 +47,16 @@ func Init(
 		case <- doorTimer.C:
 			switch state {
 				case doorOpen:
-					fmt.Println("Door timer, state at doorOpen")
+					elevLogger.Print("Door timer, state at doorOpen")
 					driver.SetDoorOpenLamp(0)
 					state = idle
 					completedFloor <- targetFloor
 					targetFloor = -1
 					deadlineTimer.Stop()
 				case idle:
-					fmt.Println("Door timer, state at idle")
+					elevLogger.Print("Door timer, state at idle")
 				case moving:
-					fmt.Println("Door timer, state at moving")
+					elevLogger.Println("Door timer, state at moving")
 			}
 
 		case floor := <- newTargetFloor:
@@ -65,7 +66,7 @@ func Init(
 			targetFloor = floor
 			switch state {
 				case idle:
-					fmt.Println("New order, state at idle")
+					elevLogger.Print("New order, state at idle")
 					if targetFloor == -1 {
 						break
 					} else if targetFloor > lastPassedFloor {
@@ -81,16 +82,16 @@ func Init(
 						state = doorOpen
 					}
 				case moving:
-					fmt.Println("New order, state at moving")
+					elevLogger.Print("New order, state at moving")
 				case doorOpen:
-					fmt.Println("New order, state at doorOpen")
+					elevLogger.Print("New order, state at doorOpen")
 			}
 
 		case floor := <- floorReached:
 			lastPassedFloor = floor
 			switch state {
 				case moving:
-					fmt.Printf("Reached floor %d, state at moving\n", floor)
+					elevLogger.Printf("Reached floor %d, state at moving", floor)
 					driver.SetFloorIndicator(floor)
 					if targetFloor == -1 {
 						break
@@ -106,9 +107,9 @@ func Init(
 						driver.MotorStop()
 					}
 				case idle:
-					fmt.Printf("Reached floor %d, state at idle\n", floor)
+					elevLogger.Printf("Reached floor %d, state at idle", floor)
 				case doorOpen:
-					fmt.Println("Reached floor %d, state at doorOpen\n", floor)
+					elevLogger.Println("Reached floor %d, state at doorOpen", floor)
 			}
 		}
 	}

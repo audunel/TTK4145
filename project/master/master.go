@@ -7,26 +7,28 @@ import (
 	"../driver"
 	"../delegation"
 	"time"
-	"fmt"
 	"log"
 )
 
-const slaveTimeoutPeriod = 5 * time.Second
-const sendInterval = 250 * time.Millisecond
-const selfAsBackupDeadline = 10 * time.Second
+const (
+	slaveTimeoutPeriod	= 5 * time.Second
+	sendInterval			= 250 * time.Millisecond
+	selfAsBackupDeadline	= 10 * time.Second
+)
 var myIP = network.GetOwnIP()
 
-func InitMaster(events com.MasterEvent,
-		initialQueue []order.Order,
-		initialSlaves map[network.IP]com.Slave) {
+func InitMaster(events			com.MasterEvent,
+				initialOrders	[]order.Order,
+				initialSlaves	map[network.IP]com.Slave,
+				masterLogger	log.Logger) {
 
 	selfAsBackup := false
 
-	queue	:= initialQueue
+	orders	:= initialOrders
 	slaves	:= initialSlaves
 
 	for {
-		fmt.Printf("Waiting for backup on machine %s\n", myIP)
+		masterLogger.Printf("Waiting for backup on machine %s", myIP)
 		select {
 		case <- time.After(selfAsBackupDeadline):
 			selfAsBackup = true
@@ -39,37 +41,38 @@ func InitMaster(events com.MasterEvent,
 
 			if(message.Address == myIP && selfAsBackup) || (message.Address != myIP) {
 				if message.Address == myIP {
-					fmt.Println("Using self as backup")
+					masterLogger.Println("Using self as backup")
 				}
-				queue, slaves = masterLoop(events, message.Address, queue, slaves)
+				orders, slaves = masterLoop(events, message.Address, orders, slaves, masterLogger)
 			}
 		}
 	}
 }
 
-func masterLoop(events com.MasterEvent,
-		backup network.IP,
-		initialQueue []order.Order,
-		initialSlaves map[network.IP]com.Slave) ([]order.Order, map[network.IP]com.Slave) {
+func masterLoop(events			com.MasterEvent,
+				backup			network.IP,
+				initialOrders	[]order.Order,
+				initialSlaves	map[network.IP]com.Slave,
+				masterLogger	log.Logger) ([]order.Order, map[network.IP]com.Slave) {
 
-	sendTicker := time.NewTicker(sendInterval)
-	slaveTimedOut := make(chan network.IP)
+	sendTicker		:= time.NewTicker(sendInterval)
+	slaveTimedOut	:= make(chan network.IP)
 
 	orders := make([]order.Order, 0)
-	if initialQueue != nil {
-		orders = initialQueue
+	if initialOrders != nil {
+		orders = initialOrders
 	}
 
 	slaves := make(map[network.IP]com.Slave)
 	if initialSlaves != nil {
-		for _, s := range(initialSlaves) {
-			s.AliveTimer = time.NewTimer(slaveTimeoutPeriod)
-			slaves[s.IP] = s
-			go listenForTimeout(s.IP, s.AliveTimer, slaveTimedOut)
+		for _, slave := range(initialSlaves) {
+			slave.AliveTimer = time.NewTimer(slaveTimeoutPeriod)
+			slaves[slave.IP] = slave
+			go listenForTimeout(slave.IP, slave.AliveTimer, slaveTimedOut)
 		}
 	}
 
-	fmt.Printf("Initiating master with backup %s\n", backup)
+	masterLogger.Printf("Initiating master with backup %s", backup)
 	for {
 		select {
 		case message := <- events.FromSlaves:
@@ -81,15 +84,15 @@ func masterLoop(events com.MasterEvent,
 
 			if backup == myIP && senderIP != myIP {
 				backup = senderIP
-				fmt.Printf("Changed backup to remote unit %s", senderIP)
+				masterLogger.Printf("Changed backup to remote machine %s", senderIP)
 			}
 
 			slave, exists := slaves[senderIP]
 			if !exists {
-				fmt.Printf("Adding new slave %s\n", senderIP)
+				masterLogger.Printf("Adding new slave %s", senderIP)
 				aliveTimer := time.NewTimer(slaveTimeoutPeriod)
 				slave := com.Slave {
-					IP:		senderIP,
+					IP:			senderIP,
 					AliveTimer:	aliveTimer,
 				}
 				go listenForTimeout(slave.IP, aliveTimer, slaveTimedOut)
@@ -103,7 +106,7 @@ func masterLoop(events com.MasterEvent,
 			orders = updateOrders(data.Requests, orders, senderIP)
 
 		case <- sendTicker.C:
-			fmt.Println("Sending to slaves")
+			masterLogger.Print("Sending to slaves")
 			err := delegation.DelegateWork(slaves, orders)
 			if err != nil {
 				log.Fatal(err)
@@ -121,7 +124,7 @@ func masterLoop(events com.MasterEvent,
 			}
 
 		case slaveIP := <- slaveTimedOut:
-			fmt.Printf("Slave %s timed out\n", slaveIP)
+			masterLogger.Printf("Slave %s timed out", slaveIP)
 			slave, exists := slaves[slaveIP]
 			if exists {
 				slave.HasTimedOut = true

@@ -8,20 +8,24 @@ import (
     "../elevator"
 	"../order"
 	"../delegation"
+	"../logger"
     "time"
-    "fmt"
+    "log"
 )
 
-const masterTimeout	= 5 * time.Second
-const sendInterval	= 200 * time.Millisecond
-var myIP			= network.GetOwnIP()
+const (
+	masterTimeout	= 5 * time.Second
+	sendInterval	= 200 * time.Millisecond
+)
+var myIP = network.GetOwnIP()
 
 func InitSlave(
 		slaveEvents		com.SlaveEvent,
 		masterEvents    com.MasterEvent,
-		elevatorEvents  com.ElevatorEvent) {
+		elevatorEvents  com.ElevatorEvent,
+		slaveLogger		log.Logger) {
 
-    fmt.Println("Awaiting master")
+    slaveLogger.Print("Awaiting master")
     sendTicker := time.NewTicker(sendInterval)
 
     orders  := make([]order.Order, 0)
@@ -29,12 +33,12 @@ func InitSlave(
     for {
         select {
         case message := <- slaveEvents.FromMaster:
-            fmt.Println("Contacted by master")
+            slaveLogger.Print("Contacted by master")
             if len(orders) == 0 {
-                fmt.Printf("Initiating slave, master %s\n", message.Address)
-                remainingOrders := slaveLoop(slaveEvents, masterEvents, elevatorEvents)
+                slaveLogger.Printf("Initiating slave, master %s", message.Address)
+                remainingOrders := slaveLoop(slaveEvents, masterEvents, elevatorEvents, slaveLogger)
 
-                fmt.Println("Waiting for new master")
+                slaveLogger.Print("Waiting for new master")
                 for _, order := range(remainingOrders) {
                     if order.TakenBy == myIP {
                         orders = append(orders, order)
@@ -45,10 +49,10 @@ func InitSlave(
 
         case <- slaveEvents.MissedDeadline:
             driver.MotorStop()
-            fmt.Println("Failed to complete order within deadline")
+            slaveLogger.Fatal("Failed to complete order within deadline")
 
         case floor := <- slaveEvents.CompletedFloor:
-            fmt.Printf("Completed floor %d\n", floor)
+            slaveLogger.Printf("Completed floor %d", floor)
             for i := 0; i < len(orders); i++ {
                 order := orders[i]
                 if order.TakenBy == myIP && order.Button.Floor == floor {
@@ -64,7 +68,7 @@ func InitSlave(
             }
 
         case <- sendTicker.C:
-            fmt.Println("Pinging")
+            slaveLogger.Print("Pinging")
             data := com.SlaveData {
                 LastPassedFloor: elevator.GetLastPassedFloor(),
             }
@@ -78,7 +82,8 @@ func InitSlave(
 func slaveLoop(
 		slaveEvents		com.SlaveEvent,
 		masterEvents    com.MasterEvent,
-		elevatorEvents  com.ElevatorEvent) []order.Order {
+		elevatorEvents  com.ElevatorEvent,
+		slaveLogger		log.Logger) []order.Order {
 
     sendTicker := time.NewTicker(sendInterval)
 
@@ -91,18 +96,18 @@ func slaveLoop(
     for {
         select {
         case <- time.After(masterTimeout):
-            fmt.Println("Master timed out")
+            slaveLogger.Println("Master timed out")
             if isBackup {
-                go master.InitMaster(masterEvents, orders, slaves)
+                go master.InitMaster(masterEvents, orders, slaves, logger.NewLogger("MASTER"))
             }
             return orders
 
         case <- slaveEvents.MissedDeadline:
             driver.MotorStop()
-            fmt.Println("Failed to complete order within deadline")
+            slaveLogger.Fatalf("Failed to complete order within deadline")
 
         case <- sendTicker.C:
-            fmt.Println("Sending..")
+            slaveLogger.Print("Sending..")
             data := com.SlaveData {
                 LastPassedFloor:    elevator.GetLastPassedFloor(),
                 Requests:           requests,
@@ -112,11 +117,11 @@ func slaveLoop(
             }
 
         case button := <- slaveEvents.ButtonPressed:
-            fmt.Println("Button pressed")
+            slaveLogger.Print("Button pressed")
             requests = append(requests, order.Order {Button: button})
 
         case floor := <- slaveEvents.CompletedFloor:
-            fmt.Println("Completed floor")
+            slaveLogger.Printf("Completed floor %d", floor)
             for _, order := range(orders) {
                 if order.TakenBy == myIP && order.Button.Floor == floor {
                     order.Done = true
@@ -129,7 +134,7 @@ func slaveLoop(
             if err != nil {
                 break
             }
-            fmt.Println("Message received")
+            slaveLogger.Print("Message received")
             slaves = data.Slaves
             orders = data.Orders
             isBackup = (data.AssignedBackup == myIP)

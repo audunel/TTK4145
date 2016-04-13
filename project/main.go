@@ -8,7 +8,7 @@ import (
 	"./master"
 	"./slave"
 	"./com"
-//	"./logger"
+	"./logger"
 )
 
 const (
@@ -42,16 +42,22 @@ func main() {
 				slaveEvents.ButtonPressed,
 				elevatorEvents.FloorReached)
 
+	elevLogger := logger.NewLogger("ELEVATOR")
 	elevator.Init(
 				slaveEvents.CompletedFloor,
 				slaveEvents.MissedDeadline,
 				elevatorEvents.FloorReached,
-				elevatorEvents.NewTargetFloor)
+				elevatorEvents.NewTargetFloor,
+				elevLogger)
+
+	networkLogger := logger.NewLogger("NETWORK")
 
 	if startAsMaster {
-		go network.UDPInit(masterPort, slavePort, masterEvents.ToSlaves, masterEvents.FromSlaves)
-		go master.InitMaster(masterEvents, nil, nil)
+		go network.UDPInit(masterPort, slavePort, masterEvents.ToSlaves, masterEvents.FromSlaves, networkLogger)
+		masterLogger := logger.NewLogger("MASTER")
+		go master.InitMaster(masterEvents, nil, nil, masterLogger)
 	}
-	go network.UDPInit(slavePort, masterPort, slaveEvents.FromMaster, slaveEvents.ToMaster)
-	slave.InitSlave(slaveEvents, masterEvents, elevatorEvents)
+	go network.UDPInit(slavePort, masterPort, slaveEvents.FromMaster, slaveEvents.ToMaster, networkLogger)
+	slaveLogger := logger.NewLogger("SLAVE")
+	slave.InitSlave(slaveEvents, masterEvents, elevatorEvents, slaveLogger)
 }

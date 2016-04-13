@@ -34,23 +34,23 @@ func GetOwnIP() IP {
 	return "127.0.0.1"
 }	
 
-func UDPInit(localPort, broadcastPort string, sendChannel, receiveChannel chan UDPMessage) {
+func UDPInit(localPort, broadcastPort string, sendChannel, receiveChannel chan UDPMessage, logger log.Logger) {
 	laddr, err := net.ResolveUDPAddr("udp", ":"+localPort)
 	if err != nil {
-		log.Fatal(err)
+		logger.Fatal(err)
 	}
 
 	conn, err := net.ListenUDP("udp", laddr)
 	if err != nil {
-		log.Fatal(err)
+		logger.Fatal(err)
 	}
 	defer conn.Close()
 
-	go listenServer(conn, receiveChannel)
-	broadcastServer(conn, broadcastPort, sendChannel)
+	go listenServer(conn, receiveChannel, logger)
+	broadcastServer(conn, broadcastPort, sendChannel, logger)
 }
 
-func listenServer(conn *net.UDPConn, receiveChannel chan UDPMessage) {
+func listenServer(conn *net.UDPConn, receiveChannel chan UDPMessage, logger log.Logger) {
 	for {
 		buf := make([]byte, 1024)
 		len, raddr, err := conn.ReadFromUDP(buf)
@@ -61,17 +61,17 @@ func listenServer(conn *net.UDPConn, receiveChannel chan UDPMessage) {
 	}
 }
 
-func broadcastServer(conn *net.UDPConn, port string, sendChannel chan UDPMessage) {
+func broadcastServer(conn *net.UDPConn, port string, sendChannel chan UDPMessage, logger log.Logger) {
 	baddr, err := net.ResolveUDPAddr("udp", "255.255.255.255:"+port)
 	if err != nil {
-		log.Fatal(err)
+		logger.Fatal(err)
 	}
 
 	for {
 		message := <- sendChannel
 		_, err := conn.WriteToUDP(message.Data, baddr)
 		if err != nil {
-			log.Fatal(err)
+			logger.Fatal(err)
 		}
 	}
 }
