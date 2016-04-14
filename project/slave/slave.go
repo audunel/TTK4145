@@ -7,7 +7,6 @@ import (
     "../master"
     "../elevator"
 	"../order"
-	"../delegation"
 	"../logger"
     "time"
     "log"
@@ -50,14 +49,14 @@ func InitSlave(
             slaveLogger.Fatal("Failed to complete order within deadline")
 
         case floor := <- slaveEvents.CompletedFloor:
-            slaveLogger.Printf("Completed floor %d", floor)
+            slaveLogger.Printf("Completed floor %d", floor+1)
             for i := 0; i < len(orders); i++ {
                 order := orders[i]
                 if order.TakenBy == myIP && order.Button.Floor == floor {
                     orders = append(orders[:i], orders[i+1:]...)
                 }
             }
-			delegation.PrioritizeForSingleElevator(orders, myIP, elevator.GetLastPassedFloor())
+			order.PrioritizeOrders(orders, myIP, elevator.GetLastPassedFloor())
 			driver.ClearAllButtonLamps()
 			for _, o := range(orders) {
 				if o.Button.Type == driver.ButtonCallCommand && o.TakenBy != myIP {
@@ -74,7 +73,7 @@ func InitSlave(
             if button.Type == driver.ButtonCallCommand {
                 orders = append(orders, order.Order {Button: button, TakenBy: myIP})
 
-				delegation.PrioritizeForSingleElevator(orders, myIP, elevator.GetLastPassedFloor())
+				order.PrioritizeOrders(orders, myIP, elevator.GetLastPassedFloor())
 				driver.ClearAllButtonLamps()
 				for _, o := range(orders) {
 					if o.Button.Type == driver.ButtonCallCommand && o.TakenBy != myIP {
@@ -105,7 +104,8 @@ func slaveLoop(
 		elevatorEvents  com.ElevatorEvent,
 		slaveLogger		log.Logger) []order.Order {
 
-    sendTicker := time.NewTicker(sendInterval)
+    sendTicker			:= time.NewTicker(sendInterval)
+	masterTimeoutTimer	:= time.NewTimer(masterTimeout)
 
     slaves		:= make(map[network.IP]com.Slave)
     orders      := make([]order.Order, 0)
@@ -115,10 +115,10 @@ func slaveLoop(
 
     for {
         select {
-        case <- time.After(masterTimeout):
+        case <- masterTimeoutTimer.C:
             slaveLogger.Println("Master timed out")
             if isBackup {
-				go network.UDPInit(true, masterEvents.ToSlaves, masterEvents.FromSlaves, logger.NewLogger("NETWORK"))
+				go network.UDPInit(true, masterEvents.ToSlaves, masterEvents.FromSlaves, logger.NewLogger("MASTER"))
                 go master.InitMaster(masterEvents, orders, slaves, logger.NewLogger("MASTER"))
             }
             return orders
@@ -150,6 +150,7 @@ func slaveLoop(
             }
 
         case message := <- slaveEvents.FromMaster:
+			masterTimeoutTimer.Reset(masterTimeout)
             data, err := com.DecodeMasterMessage(message.Data)
             if err != nil {
                 break

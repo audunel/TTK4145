@@ -15,5 +15,5 @@ func NewLogger(prefix string) log.Logger {
 
 	writer := io.MultiWriter(file, os.Stdout)
 
-	return *log.New(writer, prefix+"\t", log.LstdFlags)
+	return *log.New(writer, prefix+"\t", log.LstdFlags | log.Lshortfile)
 }

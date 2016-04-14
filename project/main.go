@@ -11,11 +11,6 @@ import (
 	"./logger"
 )
 
-const (
-	masterPort	= "20123"
-	slavePort	= "20321"
-)
-
 func main() {
 	var startAsMaster bool
 	flag.BoolVar(&startAsMaster, "master", false, "Start as master")

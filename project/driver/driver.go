@@ -80,10 +80,10 @@ func EventListener(buttonEvent chan OrderButton, floorEvent chan int) {
 func ClearAllButtonLamps() {
 	for floor := 0; floor < NumFloors; floor++ {
 		if floor < NumFloors - 1 {
-			SetButtonLamp(ButtonCallDown, floor, 0)
+			SetButtonLamp(ButtonCallUp, floor, 0)
 		}
 		if floor > 0 {
-			SetButtonLamp(ButtonCallUp, floor, 0)
+			SetButtonLamp(ButtonCallDown, floor, 0)
 		}
 		SetButtonLamp(ButtonCallCommand, floor, 0)
 	}

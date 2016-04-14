@@ -111,7 +111,7 @@ func masterLoop(events			com.MasterEvent,
 		case <- sendTicker.C:
 			err := delegation.DelegateWork(slaves, orders)
 			if err != nil {
-				log.Fatal(err)
+				masterLogger.Println(err)
 			}
 
 			data := com.MasterData {
@@ -133,7 +133,7 @@ func masterLoop(events			com.MasterEvent,
 				slaves[slaveIP] = slave
 				err := delegation.DelegateWork(slaves, orders)
 				if err != nil {
-					log.Fatal(err)
+					masterLogger.Println(err)
 				}
 			}
 			if slaveIP == backup {

@@ -6,8 +6,8 @@ import (
 )
 
 const (
-	masterPort	= "20001"
-	slavePort	= "20002"
+	masterPort	= "20021"
+	slavePort	= "20022"
 )
 
 type IP string
@@ -57,7 +57,7 @@ func UDPInit(master bool, sendChannel, receiveChannel chan UDPMessage, logger lo
 
 	conn, err := net.ListenUDP("udp", laddr)
 	if err != nil {
-		logger.Fatal(err)
+		logger.Println("Failed to connect")
 	}
 	defer conn.Close()
 
@@ -68,10 +68,7 @@ func UDPInit(master bool, sendChannel, receiveChannel chan UDPMessage, logger lo
 func listenServer(conn *net.UDPConn, receiveChannel chan UDPMessage, logger log.Logger) {
 	for {
 		buf := make([]byte, 1024)
-		len, raddr, err := conn.ReadFromUDP(buf)
-		if err != nil {
-			log.Fatal(err)
-		}
+		len, raddr, _ := conn.ReadFromUDP(buf)
 		receiveChannel <- UDPMessage{Address: IP(raddr.IP.String()), Data: buf[:len], Length: len}
 	}
 }
@@ -84,9 +81,6 @@ func broadcastServer(conn *net.UDPConn, port string, sendChannel chan UDPMessage
 
 	for {
 		message := <- sendChannel
-		_, err := conn.WriteToUDP(message.Data, baddr)
-		if err != nil {
-			logger.Fatal(err)
-		}
+		conn.WriteToUDP(message.Data, baddr)
 	}
 }

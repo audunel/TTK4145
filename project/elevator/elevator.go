@@ -90,15 +90,13 @@ func Init(
 			lastPassedFloor = floor
 			switch state {
 				case moving:
-					elevLogger.Printf("Reached floor %d, state at moving", floor+1)
+					elevLogger.Printf("Reached floor %d, target floor %d state at moving", floor+1, targetFloor+1)
 					driver.SetFloorIndicator(floor)
 					if targetFloor == -1 {
 						break
 					} else if targetFloor > lastPassedFloor {
-						state = moving
 						driver.MotorUp()
 					} else if targetFloor < lastPassedFloor {
-						state = moving
 						driver.MotorDown()
 					} else {
 						doorTimer.Reset(doorPeriod)
