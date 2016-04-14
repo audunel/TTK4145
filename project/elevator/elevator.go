@@ -36,7 +36,6 @@ func Init(
 	doorTimer.Stop()
 
 	state := idle
-	lastPassedFloor := 0
 	targetFloor := -1
 
 	for {

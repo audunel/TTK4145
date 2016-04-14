@@ -77,12 +77,14 @@ func closestOrder(ip network.IP, orders []Order, floor, targetFloor int) int {
 			continue
 		}
 
-		if targetFloor == -1 { // No target floor, find closest
+		if targetFloor == -1 {
 			distance = distanceSquared(o.Button.Floor, floor)
-		} else {
-		  if !(floor < o.Button.Floor && o.Button.Floor <= targetFloor)/* || (floor >= o.Button.Floor && o.Button.Floor > targetFloor))*/ {
-				continue
+			if currentIndex == -1 || distance < currentDistance {
+				currentIndex	= i
+				currentDistance = distance
 			}
+		} else {
+			inRange := o.Button.Floor > floor && o.Button.Floor <= targetFloor
 
 			dirUp	:= targetFloor - floor > 0
 			dirDown	:= targetFloor - floor < 0
@@ -91,21 +93,14 @@ func closestOrder(ip network.IP, orders []Order, floor, targetFloor int) int {
 			orderDown	 := o.Button.Type == driver.ButtonCallDown
 			orderCommand := o.Button.Type == driver.ButtonCallCommand
 
-			if orderCommand || ((orderDown && dirDown) || (orderUp && dirUp)) {
+			if inRange && ((dirUp	&& (orderUp || orderCommand)) ||
+						   (dirDown && (orderDown || orderCommand))) {
 				distance = distanceSquared(o.Button.Floor, floor)
-			}/* else if (orderUp && dirDown) {
-				distance = distanceSquared(floor, 0) + distanceSquared(0, o.Button.Floor); 
-				fmt.Printf("Order up, dir down, distance = %d\n", distance)
-			} else if (orderDown && dirUp) {
-				distance = distanceSquared(floor, driver.NumFloors - 1) + distanceSquared(driver.NumFloors - 1, o.Button.Floor);
-				fmt.Printf("Order down, dir up, distance = %d\n", distance)
-			}*/
-		  
-		}
-
-		if currentIndex == -1 || distance < currentDistance {
-			currentIndex	= i
-			currentDistance = distance
+				if currentIndex == -1 || distance < currentDistance {
+					currentIndex = i
+					currentDistance = distance
+				}
+			}		  
 		}
 	}
 	return currentIndex
