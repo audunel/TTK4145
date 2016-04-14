@@ -5,6 +5,11 @@ import (
 	"log"
 )
 
+const (
+	masterPort	= "20001"
+	slavePort	= "20002"
+)
+
 type IP string
 
 type UDPMessage struct {
@@ -34,7 +39,17 @@ func GetOwnIP() IP {
 	return "127.0.0.1"
 }	
 
-func UDPInit(localPort, broadcastPort string, sendChannel, receiveChannel chan UDPMessage, logger log.Logger) {
+func UDPInit(master bool, sendChannel, receiveChannel chan UDPMessage, logger log.Logger) {
+
+	var localPort, broadcastPort string
+	if master {
+		localPort		= masterPort
+		broadcastPort	= slavePort
+	} else {
+		localPort		= slavePort
+		broadcastPort	= masterPort
+	}
+
 	laddr, err := net.ResolveUDPAddr("udp", ":"+localPort)
 	if err != nil {
 		logger.Fatal(err)

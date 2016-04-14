@@ -13,7 +13,7 @@ import (
 const (
 	slaveTimeoutPeriod		= 5 * time.Second
 	sendInterval			= 100 * time.Millisecond
-	selfAsBackupDeadline	= 1 * time.Second
+	selfAsBackupDeadline	= 10 * time.Second
 )
 var myIP = network.GetOwnIP()
 
