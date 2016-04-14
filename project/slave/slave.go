@@ -11,11 +11,12 @@ import (
 	"../logger"
     "time"
     "log"
+	"fmt"
 )
 
 const (
 	masterTimeout	= 5 * time.Second
-	sendInterval	= 200 * time.Millisecond
+	sendInterval	= 100 * time.Millisecond
 )
 var myIP = network.GetOwnIP()
 
@@ -33,7 +34,6 @@ func InitSlave(
     for {
         select {
         case message := <- slaveEvents.FromMaster:
-            slaveLogger.Print("Contacted by master")
             if len(orders) == 0 {
                 slaveLogger.Printf("Initiating slave, master %s", message.Address)
                 remainingOrders := slaveLoop(slaveEvents, masterEvents, elevatorEvents, slaveLogger)
@@ -44,7 +44,6 @@ func InitSlave(
                         orders = append(orders, order)
                     }
                 }
-                handleOrders(orders, nil, myIP, elevator.GetLastPassedFloor(), elevatorEvents.NewTargetFloor)
             }
 
         case <- slaveEvents.MissedDeadline:
@@ -59,16 +58,38 @@ func InitSlave(
                     orders = append(orders[:i], orders[i+1:]...)
                 }
             }
-            handleOrders(orders, nil, myIP, elevator.GetLastPassedFloor(), elevatorEvents.NewTargetFloor)
+			delegation.PrioritizeForSingleElevator(orders, myIP, elevator.GetLastPassedFloor())
+			driver.ClearAllButtonLamps()
+			for _, o := range(orders) {
+				if o.Button.Type == driver.ButtonCallCommand && o.TakenBy != myIP {
+					continue
+				}
+				driver.SetButtonLamp(o.Button.Type, o.Button.Floor, 1)
+			}
+			priority := order.GetPriority(orders, myIP)
+			if priority != nil {
+				elevatorEvents.NewTargetFloor <- priority.Button.Floor
+			}
 
         case button := <- slaveEvents.ButtonPressed:
             if button.Type == driver.ButtonCallCommand {
                 orders = append(orders, order.Order {Button: button, TakenBy: myIP})
-                handleOrders(orders, nil, myIP, elevator.GetLastPassedFloor(), elevatorEvents.NewTargetFloor)
+
+				delegation.PrioritizeForSingleElevator(orders, myIP, elevator.GetLastPassedFloor())
+				driver.ClearAllButtonLamps()
+				for _, o := range(orders) {
+					if o.Button.Type == driver.ButtonCallCommand && o.TakenBy != myIP {
+						continue
+					}
+					driver.SetButtonLamp(o.Button.Type, o.Button.Floor, 1)
+				}
+				priority := order.GetPriority(orders, myIP)
+				if priority != nil {
+					elevatorEvents.NewTargetFloor <- priority.Button.Floor
+				}
             }
 
         case <- sendTicker.C:
-            slaveLogger.Print("Pinging")
             data := com.SlaveData {
                 LastPassedFloor: elevator.GetLastPassedFloor(),
             }
@@ -107,7 +128,6 @@ func slaveLoop(
             slaveLogger.Fatalf("Failed to complete order within deadline")
 
         case <- sendTicker.C:
-            slaveLogger.Print("Sending..")
             data := com.SlaveData {
                 LastPassedFloor:    elevator.GetLastPassedFloor(),
                 Requests:           requests,
@@ -122,10 +142,10 @@ func slaveLoop(
 
         case floor := <- slaveEvents.CompletedFloor:
             slaveLogger.Printf("Completed floor %d", floor)
-            for _, order := range(orders) {
-                if order.TakenBy == myIP && order.Button.Floor == floor {
-                    order.Done = true
-                    requests = append(requests, order)
+            for _, o := range(orders) {
+                if o.TakenBy == myIP && o.Button.Floor == floor {
+                    o.Done = true
+                    requests = append(requests, o)
                 }
             }
 
@@ -134,27 +154,42 @@ func slaveLoop(
             if err != nil {
                 break
             }
-            slaveLogger.Print("Message received")
             slaves = data.Slaves
             orders = data.Orders
             isBackup = (data.AssignedBackup == myIP)
-            handleOrders(orders, requests, myIP, elevator.GetLastPassedFloor(), elevatorEvents.NewTargetFloor)
-		}
-	}
-}
 
-func handleOrders(orders, requests []order.Order, IP network.IP, lastPassedFloor int, newTargetFloor chan int) {
-    delegation.PrioritizeForSingleElevator(orders, myIP, lastPassedFloor)
-    // TODO: Lamp control
-    priority := order.GetPriority(orders, myIP)
-    if priority != nil {
-		if requests == nil {
-	        newTargetFloor <- priority.Button.Floor
-		} else {
-			for _, request := range(requests) {
-				if order.OrdersEqual(*priority, request) {
-					newTargetFloor <- priority.Button.Floor
-					break
+			driver.ClearAllButtonLamps()
+			for _, o := range(orders) {
+				if o.Button.Type == driver.ButtonCallCommand && o.TakenBy != myIP {
+					continue
+				}
+				driver.SetButtonLamp(o.Button.Type, o.Button.Floor, 1)
+			}
+
+			priority := order.GetPriority(orders, myIP)
+			if priority != nil && !order.OrderDone(*priority, requests) {
+				fmt.Printf("Priority is %d\n", priority.Button.Floor+1)
+				elevatorEvents.NewTargetFloor <- priority.Button.Floor
+			}
+			// Remove acknowledged orders
+			for i := 0; i < len(requests); i++ {
+				r := requests[i]
+				sentToMaster := false
+				acknowledged := false
+				for _, o := range(orders) {
+					if order.OrdersEqual(r, o) {
+						sentToMaster = true
+						if r.Done == o.Done {
+							acknowledged = true
+						}
+					}
+				}
+				if !sentToMaster && r.Done {
+					acknowledged = true
+				}
+				if acknowledged {
+					requests = append(requests[:i], requests[i+1:]...)
+					i--
 				}
 			}
 		}

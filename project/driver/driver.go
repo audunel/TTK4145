@@ -54,6 +54,7 @@ func EventListener(buttonEvent chan OrderButton, floorEvent chan int) {
 		floorSignal = GetFloorSignal()
 		if floorSignal != lastPassedFloor && floorSignal != -1 {
 			floorEvent <- floorSignal
+			lastPassedFloor = floorSignal
 		}
 		
 		for floor := 0; floor < NumFloors; floor++ {

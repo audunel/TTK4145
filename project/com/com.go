@@ -23,8 +23,8 @@ type MasterData struct {
 type Slave struct {
 	IP				network.IP
 	LastPassedFloor	int
-	HasTimedOut	bool
-	AliveTimer		*time.Timer
+	HasTimedOut		bool
+	AliveTimer		*time.Timer `json:"-"`
 }
 
 func EncodeMasterData(m MasterData) []byte {

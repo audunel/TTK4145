@@ -56,7 +56,7 @@ func Init(
 				case idle:
 					elevLogger.Print("Door timer, state at idle")
 				case moving:
-					elevLogger.Println("Door timer, state at moving")
+					elevLogger.Print("Door timer, state at moving")
 			}
 
 		case floor := <- newTargetFloor:
@@ -66,7 +66,7 @@ func Init(
 			targetFloor = floor
 			switch state {
 				case idle:
-					elevLogger.Print("New order, state at idle")
+					elevLogger.Printf("New order for floor %d, state at idle", targetFloor+1)
 					if targetFloor == -1 {
 						break
 					} else if targetFloor > lastPassedFloor {
@@ -82,16 +82,16 @@ func Init(
 						state = doorOpen
 					}
 				case moving:
-					elevLogger.Print("New order, state at moving")
+					elevLogger.Printf("New order for floor %d, state at moving", targetFloor+1)
 				case doorOpen:
-					elevLogger.Print("New order, state at doorOpen")
+					elevLogger.Printf("New order for floor %d, state at doorOpen", targetFloor+1)
 			}
 
 		case floor := <- floorReached:
 			lastPassedFloor = floor
 			switch state {
 				case moving:
-					elevLogger.Printf("Reached floor %d, state at moving", floor)
+					elevLogger.Printf("Reached floor %d, state at moving", floor+1)
 					driver.SetFloorIndicator(floor)
 					if targetFloor == -1 {
 						break
@@ -105,11 +105,12 @@ func Init(
 						doorTimer.Reset(doorPeriod)
 						driver.SetDoorOpenLamp(1)
 						driver.MotorStop()
+						state = doorOpen
 					}
 				case idle:
-					elevLogger.Printf("Reached floor %d, state at idle", floor)
+					elevLogger.Printf("Reached floor %d, state at idle", floor+1)
 				case doorOpen:
-					elevLogger.Println("Reached floor %d, state at doorOpen", floor)
+					elevLogger.Printf("Reached floor %d, state at doorOpen", floor+1)
 			}
 		}
 	}

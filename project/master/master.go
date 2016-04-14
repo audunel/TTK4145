@@ -8,12 +8,13 @@ import (
 	"../delegation"
 	"time"
 	"log"
+	"fmt"
 )
 
 const (
-	slaveTimeoutPeriod	= 5 * time.Second
-	sendInterval			= 250 * time.Millisecond
-	selfAsBackupDeadline	= 10 * time.Second
+	slaveTimeoutPeriod		= 5 * time.Second
+	sendInterval			= 100 * time.Millisecond
+	selfAsBackupDeadline	= 1 * time.Second
 )
 var myIP = network.GetOwnIP()
 
@@ -22,15 +23,16 @@ func InitMaster(events			com.MasterEvent,
 				initialSlaves	map[network.IP]com.Slave,
 				masterLogger	log.Logger) {
 
-	selfAsBackup := false
+	selfAsBackup		:= false
+	selfAsBackupTimer	:= time.NewTimer(selfAsBackupDeadline)
 
 	orders	:= initialOrders
 	slaves	:= initialSlaves
 
+	masterLogger.Print("Waiting for backup")
 	for {
-		masterLogger.Printf("Waiting for backup on machine %s", myIP)
 		select {
-		case <- time.After(selfAsBackupDeadline):
+		case <- selfAsBackupTimer.C:
 			selfAsBackup = true
 
 		case message := <- events.FromSlaves:
@@ -44,6 +46,8 @@ func InitMaster(events			com.MasterEvent,
 					masterLogger.Println("Using self as backup")
 				}
 				orders, slaves = masterLoop(events, message.Address, orders, slaves, masterLogger)
+				masterLogger.Print("Waiting for new backup")
+				selfAsBackup = false
 			}
 		}
 	}
@@ -91,7 +95,7 @@ func masterLoop(events			com.MasterEvent,
 			if !exists {
 				masterLogger.Printf("Adding new slave %s", senderIP)
 				aliveTimer := time.NewTimer(slaveTimeoutPeriod)
-				slave := com.Slave {
+				slave = com.Slave {
 					IP:			senderIP,
 					AliveTimer:	aliveTimer,
 				}
@@ -106,7 +110,6 @@ func masterLoop(events			com.MasterEvent,
 			orders = updateOrders(data.Requests, orders, senderIP)
 
 		case <- sendTicker.C:
-			masterLogger.Print("Sending to slaves")
 			err := delegation.DelegateWork(slaves, orders)
 			if err != nil {
 				log.Fatal(err)
@@ -162,6 +165,7 @@ func addNewOrders(requests, orders []order.Order, sender network.IP) []order.Ord
 			request.TakenBy = sender
 		}
 		if order.OrderNew(request, orders) {
+			fmt.Printf("New order added, floor %d\n", request.Button.Floor)
 			orders = append(orders, request)
 		}
 	}
@@ -176,6 +180,7 @@ func removeDoneOrders(requests, orders []order.Order) []order.Order {
 			}
 		}
 		if orders[i].Done {
+			fmt.Printf("Order deleted, floor %d\n", orders[i].Button.Floor)
 			orders = append(orders[:i], orders[i+1:]...)
 			i--
 		}

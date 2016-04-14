@@ -57,7 +57,7 @@ func listenServer(conn *net.UDPConn, receiveChannel chan UDPMessage, logger log.
 		if err != nil {
 			log.Fatal(err)
 		}
-		receiveChannel <- UDPMessage{Address: IP(raddr.String()), Data: buf[:len], Length: len}
+		receiveChannel <- UDPMessage{Address: IP(raddr.IP.String()), Data: buf[:len], Length: len}
 	}
 }
 

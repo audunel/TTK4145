@@ -12,8 +12,8 @@ import (
 )
 
 const (
-	masterPort	= "20001"
-	slavePort	= "20002"
+	masterPort	= "20123"
+	slavePort	= "20321"
 )
 
 func main() {
@@ -38,12 +38,12 @@ func main() {
 
 	driver.ElevInit()
 
-	driver.EventListener(
+	go driver.EventListener(
 				slaveEvents.ButtonPressed,
 				elevatorEvents.FloorReached)
 
-	elevLogger := logger.NewLogger("ELEVATOR")
-	elevator.Init(
+	elevLogger := logger.NewLogger("ELEV")
+	go elevator.Init(
 				slaveEvents.CompletedFloor,
 				slaveEvents.MissedDeadline,
 				elevatorEvents.FloorReached,
@@ -57,7 +57,7 @@ func main() {
 		masterLogger := logger.NewLogger("MASTER")
 		go master.InitMaster(masterEvents, nil, nil, masterLogger)
 	}
-	go network.UDPInit(slavePort, masterPort, slaveEvents.FromMaster, slaveEvents.ToMaster, networkLogger)
+	go network.UDPInit(slavePort, masterPort, slaveEvents.ToMaster, slaveEvents.FromMaster, networkLogger)
 	slaveLogger := logger.NewLogger("SLAVE")
 	slave.InitSlave(slaveEvents, masterEvents, elevatorEvents, slaveLogger)
 }
