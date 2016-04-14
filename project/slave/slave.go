@@ -11,7 +11,6 @@ import (
 	"../logger"
     "time"
     "log"
-	"fmt"
 )
 
 const (
@@ -141,7 +140,7 @@ func slaveLoop(
             requests = append(requests, order.Order {Button: button})
 
         case floor := <- slaveEvents.CompletedFloor:
-            slaveLogger.Printf("Completed floor %d", floor)
+            slaveLogger.Printf("Completed floor %d", floor+1)
             for _, o := range(orders) {
                 if o.TakenBy == myIP && o.Button.Floor == floor {
                     o.Done = true
@@ -168,7 +167,6 @@ func slaveLoop(
 
 			priority := order.GetPriority(orders, myIP)
 			if priority != nil && !order.OrderDone(*priority, requests) {
-				fmt.Printf("Priority is %d\n", priority.Button.Floor+1)
 				elevatorEvents.NewTargetFloor <- priority.Button.Floor
 			}
 			// Remove acknowledged orders

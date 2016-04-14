@@ -61,6 +61,7 @@ func Init(
 
 		case floor := <- newTargetFloor:
 			if targetFloor != floor {
+				elevLogger.Printf("New target floor %d\n", floor+1)
 				deadlineTimer.Reset(deadlinePeriod)
 			}
 			targetFloor = floor
@@ -82,9 +83,7 @@ func Init(
 						state = doorOpen
 					}
 				case moving:
-					elevLogger.Printf("New order for floor %d, state at moving", targetFloor+1)
 				case doorOpen:
-					elevLogger.Printf("New order for floor %d, state at doorOpen", targetFloor+1)
 			}
 
 		case floor := <- floorReached:

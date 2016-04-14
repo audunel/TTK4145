@@ -8,7 +8,6 @@ import (
 	"../delegation"
 	"time"
 	"log"
-	"fmt"
 )
 
 const (
@@ -165,7 +164,6 @@ func addNewOrders(requests, orders []order.Order, sender network.IP) []order.Ord
 			request.TakenBy = sender
 		}
 		if order.OrderNew(request, orders) {
-			fmt.Printf("New order added, floor %d\n", request.Button.Floor)
 			orders = append(orders, request)
 		}
 	}
@@ -180,7 +178,6 @@ func removeDoneOrders(requests, orders []order.Order) []order.Order {
 			}
 		}
 		if orders[i].Done {
-			fmt.Printf("Order deleted, floor %d\n", orders[i].Button.Floor)
 			orders = append(orders[:i], orders[i+1:]...)
 			i--
 		}
