@@ -45,7 +45,7 @@ func InitSlave(
             }
 
         case <- slaveEvents.MissedDeadline:
-            driver.MotorStop()
+            driver.SetMotorDirection(driver.DirnStop)
             slaveLogger.Fatal("Failed to complete order within deadline")
 
         case floor := <- slaveEvents.CompletedFloor:
@@ -56,7 +56,7 @@ func InitSlave(
                     orders = append(orders[:i], orders[i+1:]...)
                 }
             }
-			order.PrioritizeOrders(orders, myIP, elevator.GetLastPassedFloor())
+			order.PrioritizeOrders(orders, myIP, elevator.GetLastPassedFloor(), elevator.GetCurrentDirection())
 			driver.ClearAllButtonLamps()
 			for _, o := range(orders) {
 				if o.Button.Type == driver.ButtonCallCommand && o.TakenBy != myIP {
@@ -89,7 +89,8 @@ func InitSlave(
 
         case <- sendTicker.C:
             data := com.SlaveData {
-                LastPassedFloor: elevator.GetLastPassedFloor(),
+                LastPassedFloor:  elevator.GetLastPassedFloor(),
+				CurrentDirection: 
             }
             slaveEvents.ToMaster <- network.UDPMessage {
                 Data: com.EncodeSlaveData(data),
@@ -124,12 +125,13 @@ func slaveLoop(
             return orders
 
         case <- slaveEvents.MissedDeadline:
-            driver.MotorStop()
+            driver.SetMotorDirection(driver.DirnStop)
             slaveLogger.Fatalf("Failed to complete order within deadline")
 
         case <- sendTicker.C:
             data := com.SlaveData {
                 LastPassedFloor:    elevator.GetLastPassedFloor(),
+				CurrentDirection:	elevator.GetCurrentDirection(),
                 Requests:           requests,
             }
             slaveEvents.ToMaster <- network.UDPMessage {

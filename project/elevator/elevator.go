@@ -10,6 +10,7 @@ const deadlinePeriod	= time.Duration(5 * driver.NumFloors) * time.Second
 const doorPeriod		= 3 * time.Second
 
 var lastPassedFloor int
+var currentDirection driver.MotorDirection
 
 type state int
 const (
@@ -20,6 +21,10 @@ const (
 
 func GetLastPassedFloor() int {
 	return lastPassedFloor
+}
+
+func GetCurrentDirection() driver.MotorDirection {
+	return currentDirection
 }
 
 func Init(
@@ -71,16 +76,17 @@ func Init(
 						break
 					} else if targetFloor > lastPassedFloor {
 						state = moving
-						driver.MotorUp()
+						currentDirection = driver.DirnUp
 					} else if targetFloor < lastPassedFloor {
 						state = moving
-						driver.MotorDown()
+						currentDirection = driver.DirnDown
 					} else {
 						doorTimer.Reset(doorPeriod)
 						driver.SetDoorOpenLamp(1)
-						driver.MotorStop()
+						currentDirection = driver.DirnStop
 						state = doorOpen
 					}
+					driver.SetMotorDirection(currentDirection)
 				case moving:
 				case doorOpen:
 			}
@@ -94,15 +100,16 @@ func Init(
 					if targetFloor == -1 {
 						break
 					} else if targetFloor > lastPassedFloor {
-						driver.MotorUp()
+						currentDirection = driver.DirnUp
 					} else if targetFloor < lastPassedFloor {
-						driver.MotorDown()
+						currentDirection = driver.DirnDown
 					} else {
 						doorTimer.Reset(doorPeriod)
 						driver.SetDoorOpenLamp(1)
-						driver.MotorStop()
+						currentDirection = driver.DirnStop
 						state = doorOpen
 					}
+					driver.SetMotorDirection(currentDirection)
 				case idle:
 					elevLogger.Printf("Reached floor %d, state at idle", floor+1)
 				case doorOpen:

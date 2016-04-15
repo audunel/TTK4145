@@ -39,9 +39,9 @@ func ElevInit() {
 	SetDoorOpenLamp(0)
 	SetFloorIndicator(0)
 
-	MotorDown()
+	SetMotorDirection(DirnDown)
 	for GetFloorSignal() != 0 {}
-	MotorStop()
+	SetMotorDirection(DirnStop)
 }
 
 func EventListener(buttonEvent chan OrderButton, floorEvent chan int) {
@@ -89,20 +89,8 @@ func ClearAllButtonLamps() {
 	}
 }
 
-func setMotorDirection(dirn MotorDirection) {
+func SetMotorDirection(dirn MotorDirection) {
 	C.elev_set_motor_direction(C.elev_motor_direction_t(dirn))
-}
-
-func MotorUp() {
-	setMotorDirection(DirnUp)
-}
-
-func MotorStop() {
-	setMotorDirection(DirnStop)
-}
-
-func MotorDown() {
-	setMotorDirection(DirnDown)
 }
 
 func SetButtonLamp(button ButtonType, floor, value int) {

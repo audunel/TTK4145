@@ -46,7 +46,7 @@ func GetPriority(orders []Order, ip network.IP) *Order {
 	return nil
 }
 
-func PrioritizeOrders(orders []Order, ip network.IP, lastPassedFloor int) {
+func PrioritizeOrders(orders []Order, ip network.IP, lastPassedFloor int, currentDirection driver.MotorDirection) {
 	targetFloor 	:= InvalidFloor
 	currentPriority := -1
 	for i, o := range(orders) {
@@ -56,7 +56,7 @@ func PrioritizeOrders(orders []Order, ip network.IP, lastPassedFloor int) {
 		}
 	}
 
-	betterPriority := closestOrder(ip, orders, lastPassedFloor, targetFloor)
+	betterPriority := closestOrder(ip, orders, lastPassedFloor, targetFloor, currentDirection)
 
 	if betterPriority >= 0 {
 		if currentPriority >= 0 {
@@ -67,7 +67,7 @@ func PrioritizeOrders(orders []Order, ip network.IP, lastPassedFloor int) {
 }
 
 	
-func closestOrder(ip network.IP, orders []Order, floor, targetFloor int) int {
+func closestOrder(ip network.IP, orders []Order, lastPassedFloor, currentTargetFloor int, currentDirection driver.MotorDirection) int {
 	currentIndex	:= -1
 	currentDistance	:= -1
 
@@ -77,30 +77,25 @@ func closestOrder(ip network.IP, orders []Order, floor, targetFloor int) int {
 			continue
 		}
 
-		if targetFloor == -1 {
-			distance = distanceSquared(o.Button.Floor, floor)
-			if currentIndex == -1 || distance < currentDistance {
-				currentIndex	= i
-				currentDistance = distance
-			}
+		if currentTargetFloor == -1 {
+			distance = distanceSquared(o.Button.Floor, lastPassedFloor)
 		} else {
-			inRange := o.Button.Floor > floor && o.Button.Floor <= targetFloor
-
-			dirUp	:= targetFloor - floor > 0
-			dirDown	:= targetFloor - floor < 0
-
+			if o.Button.Floor <= lastPassedFloor || o.Button.Floor > currentTargetFloor {
+				continue
+			}
+			
 			orderUp		 := o.Button.Type == driver.ButtonCallUp
 			orderDown	 := o.Button.Type == driver.ButtonCallDown
 			orderCommand := o.Button.Type == driver.ButtonCallCommand
 
-			if inRange && ((dirUp	&& (orderUp || orderCommand)) ||
-						   (dirDown && (orderDown || orderCommand))) {
-				distance = distanceSquared(o.Button.Floor, floor)
-				if currentIndex == -1 || distance < currentDistance {
-					currentIndex = i
-					currentDistance = distance
-				}
-			}		  
+			if ((currentDirection == driver.DirnUp && (orderUp || orderCommand)) ||
+				(currentDirection == driver.DirnDown && (orderDown || orderCommand))) {
+				distance = distanceSquared(o.Button.Floor, lastPassedFloor)
+			}
+		}
+		if currentIndex == -1 || distance < currentDistance {
+			currentIndex = i
+			currentDistance = distance
 		}
 	}
 	return currentIndex

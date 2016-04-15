@@ -26,7 +26,7 @@ func DelegateWork(slaves map[network.IP]com.Slave, orders []order.Order) error {
 	}
 
 	for ip, slave := range(slaves) {
-		order.PrioritizeOrders(orders, ip, slave.LastPassedFloor)
+		order.PrioritizeOrders(orders, ip, slave.LastPassedFloor, slave.CurrentDirection)
 	}
 
 	return nil

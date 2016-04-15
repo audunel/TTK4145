@@ -102,9 +102,10 @@ func masterLoop(events			com.MasterEvent,
 			}
 
 			slave.AliveTimer.Reset(slaveTimeoutPeriod)
-			slave.HasTimedOut = false
-			slave.LastPassedFloor = data.LastPassedFloor
-			slaves[senderIP] = slave
+			slave.HasTimedOut		= false
+			slave.LastPassedFloor	= data.LastPassedFloor
+			slave.CurrentDirection	= data.CurrentDirection
+			slaves[senderIP]		= slave
 
 			orders = updateOrders(data.Requests, orders, senderIP)
 
