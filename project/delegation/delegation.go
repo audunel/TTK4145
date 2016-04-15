@@ -44,7 +44,7 @@ func closestElevator(slaves map[network.IP]com.Slave, floor int) network.IP {
 		if slave.HasTimedOut || slave.ElevData.busy {
 			continue
 		}
-		distance = distanceSquared(slave.LastPassedFloor, floor)
+		distance = distanceSquared(slave.ElevData.LastPassedFloor, floor)
 		if distance < currentDistance {
 			currentDistance = distance
 			currentIP		= ip
@@ -56,7 +56,7 @@ func closestElevator(slaves map[network.IP]com.Slave, floor int) network.IP {
 			if slave.HasTimedOut {
 				continue
 			}
-			distance = distanceSquared(slave.LastPassedFloor, floor)
+			distance = distanceSquared(slave.ElevData.LastPassedFloor, floor)
 			if distance < currentDistance {
 				currentDistance = distance
 				currentIP		= ip
