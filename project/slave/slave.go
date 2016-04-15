@@ -56,7 +56,8 @@ func InitSlave(
                     orders = append(orders[:i], orders[i+1:]...)
                 }
             }
-			order.PrioritizeOrders(orders, myIP, elevator.GetElevData())
+			elevData := elevator.GetElevData()
+			order.PrioritizeOrders(orders, myIP, elevData.LastPassedFloor, elevData.CurrentDirection)
 			driver.ClearAllButtonLamps()
 			for _, o := range(orders) {
 				if o.Button.Type == driver.ButtonCallCommand && o.TakenBy != myIP {
@@ -72,8 +73,8 @@ func InitSlave(
         case button := <- slaveEvents.ButtonPressed:
             if button.Type == driver.ButtonCallCommand {
                 orders = append(orders, order.Order {Button: button, TakenBy: myIP})
-
-				order.PrioritizeOrders(orders, myIP, elevator.GetElevData())
+				elevData := elevator.GetElevData()
+				order.PrioritizeOrders(orders, myIP, elevData.LastPassedFloor, elevData.CurrentDirection)
 				driver.ClearAllButtonLamps()
 				for _, o := range(orders) {
 					if o.Button.Type == driver.ButtonCallCommand && o.TakenBy != myIP {
@@ -89,7 +90,7 @@ func InitSlave(
 
         case <- sendTicker.C:
             data := com.SlaveData {
-				ElevData: elevator.GetElevData()
+				ElevData: elevator.GetElevData(),
             }
             slaveEvents.ToMaster <- network.UDPMessage {
                 Data: com.EncodeSlaveData(data),

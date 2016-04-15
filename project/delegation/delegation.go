@@ -16,11 +16,11 @@ const (
 func DelegateWork(slaves map[network.IP]com.Slave, orders []order.Order) error {
 	for i, order := range(orders) {
 		if	(order.Button.Type != driver.ButtonCallCommand) &&
-			(order.TakenBy == InvalidIP ||
+			(order.TakenBy == invalidIP ||
 			slaves[order.TakenBy].HasTimedOut) {
 
 			closest := closestElevator(slaves, order.Button.Floor)
-			if closest == InvalidIP {
+			if closest == invalidIP {
 				return fmt.Errorf("No active elevators")
 			}
 			order.TakenBy = closest
@@ -29,7 +29,7 @@ func DelegateWork(slaves map[network.IP]com.Slave, orders []order.Order) error {
 	}
 
 	for ip, slave := range(slaves) {
-		order.PrioritizeOrders(orders, ip, slave.Data.LastPassedFloor, slave.Data.CurrentDirection)
+		order.PrioritizeOrders(orders, ip, slave.ElevData.LastPassedFloor, slave.ElevData.CurrentDirection)
 	}
 
 	return nil
@@ -37,11 +37,11 @@ func DelegateWork(slaves map[network.IP]com.Slave, orders []order.Order) error {
 
 func closestElevator(slaves map[network.IP]com.Slave, floor int) network.IP {
 	currentDistance	:= maxDistance
-	currentIP		:= InvalidIP
+	currentIP		:= invalidIP
 
 	var distance int
 	for ip, slave := range(slaves) {
-		if slave.HasTimedOut || slave.ElevData.busy {
+		if slave.HasTimedOut || slave.ElevData.Busy {
 			continue
 		}
 		distance = distanceSquared(slave.ElevData.LastPassedFloor, floor)
