@@ -13,17 +13,17 @@ import (
 const (
 	slaveTimeoutPeriod		= 5 * time.Second
 	sendInterval			= 100 * time.Millisecond
-	selfAsBackupDeadline	= 10 * time.Second
+	backupDeadline			= 10 * time.Second
 )
 var myIP = network.GetOwnIP()
 
-func InitMaster(events			com.MasterEvent,
-				initialOrders	[]order.Order,
-				initialSlaves	map[network.IP]com.Slave,
-				masterLogger	log.Logger) {
+func InitMaster(events				com.MasterEvent,
+				initialOrders		[]order.Order,
+				initialSlaves		map[network.IP]com.Slave,
+				masterLogger		log.Logger,
+				networkKillswitch	chan bool) {
 
-	selfAsBackup		:= false
-	selfAsBackupTimer	:= time.NewTimer(selfAsBackupDeadline)
+	backupDeadlineTimer	:= time.NewTimer(backupDeadline)
 
 	orders	:= initialOrders
 	slaves	:= initialSlaves
@@ -31,8 +31,10 @@ func InitMaster(events			com.MasterEvent,
 	masterLogger.Print("Waiting for backup")
 	for {
 		select {
-		case <- selfAsBackupTimer.C:
-			selfAsBackup = true
+		case <- backupDeadlineTimer.C:
+			masterLogger.Print("Not contacted by external slave within deadline. Terminating master.")
+			networkKillswitch <- true
+			return
 
 		case message := <- events.FromSlaves:
 			_, err := com.DecodeSlaveMessage(message.Data)
@@ -40,13 +42,10 @@ func InitMaster(events			com.MasterEvent,
 				break
 			}
 
-			if(message.Address == myIP && selfAsBackup) || (message.Address != myIP) {
-				if message.Address == myIP {
-					masterLogger.Println("Using self as backup")
-				}
+			if(message.Address != myIP) {
 				orders, slaves = masterLoop(events, message.Address, orders, slaves, masterLogger)
 				masterLogger.Print("Waiting for new backup")
-				selfAsBackup = false
+				backupDeadlineTimer.Reset(backupDeadline)
 			}
 		}
 	}
@@ -85,11 +84,6 @@ func masterLoop(events			com.MasterEvent,
 				break
 			}
 
-			if backup == myIP && senderIP != myIP {
-				backup = senderIP
-				masterLogger.Printf("Changed backup to remote machine %s", senderIP)
-			}
-
 			slave, exists := slaves[senderIP]
 			if !exists {
 				masterLogger.Printf("Adding new slave %s", senderIP)
@@ -111,7 +105,7 @@ func masterLoop(events			com.MasterEvent,
 		case <- sendTicker.C:
 			err := delegation.DelegateWork(slaves, orders)
 			if err != nil {
-				masterLogger.Println(err)
+				masterLogger.Print(err)
 			}
 
 			data := com.MasterData {

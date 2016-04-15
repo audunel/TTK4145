@@ -119,8 +119,9 @@ func slaveLoop(
         case <- masterTimeoutTimer.C:
             slaveLogger.Println("Master timed out")
             if isBackup {
-				go network.UDPInit(true, masterEvents.ToSlaves, masterEvents.FromSlaves, logger.NewLogger("MASTER"))
-                go master.InitMaster(masterEvents, orders, slaves, logger.NewLogger("MASTER"))
+				networkKillswitch := make(chan bool)
+				go network.UDPInit(true, masterEvents.ToSlaves, masterEvents.FromSlaves, logger.NewLogger("NETWORK"), networkKillswitch)
+                go master.InitMaster(masterEvents, orders, slaves, logger.NewLogger("MASTER"), networkKillswitch)
             }
             return orders
 

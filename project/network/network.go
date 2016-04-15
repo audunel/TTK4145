@@ -39,33 +39,41 @@ func GetOwnIP() IP {
 	return "127.0.0.1"
 }	
 
-func UDPInit(master bool, sendChannel, receiveChannel chan UDPMessage, logger log.Logger) {
+func UDPInit(master bool, sendChannel, receiveChannel chan UDPMessage, networkLogger log.Logger, killswitch chan bool) {
+	for {
+		select {
+		case <- killswitch:
+			networkLogger.Print("Received signal to shut down")
+			return
 
-	var localPort, broadcastPort string
-	if master {
-		localPort		= masterPort
-		broadcastPort	= slavePort
-	} else {
-		localPort		= slavePort
-		broadcastPort	= masterPort
+		default:
+			var localPort, broadcastPort string
+			if master {
+				localPort		= masterPort
+				broadcastPort	= slavePort
+			} else {
+				localPort		= slavePort
+				broadcastPort	= masterPort
+			}
+	
+			laddr, err := net.ResolveUDPAddr("udp", ":"+localPort)
+			if err != nil {
+				networkLogger.Fatal(err)
+			}
+	
+			conn, err := net.ListenUDP("udp", laddr)
+			if err != nil {
+				networkLogger.Println("Failed to connect")
+			}
+			defer conn.Close()
+
+			go listenServer(conn, receiveChannel, networkLogger)
+			broadcastServer(conn, broadcastPort, sendChannel, networkLogger)
+		}
 	}
-
-	laddr, err := net.ResolveUDPAddr("udp", ":"+localPort)
-	if err != nil {
-		logger.Fatal(err)
-	}
-
-	conn, err := net.ListenUDP("udp", laddr)
-	if err != nil {
-		logger.Println("Failed to connect")
-	}
-	defer conn.Close()
-
-	go listenServer(conn, receiveChannel, logger)
-	broadcastServer(conn, broadcastPort, sendChannel, logger)
 }
 
-func listenServer(conn *net.UDPConn, receiveChannel chan UDPMessage, logger log.Logger) {
+func listenServer(conn *net.UDPConn, receiveChannel chan UDPMessage, networkLogger log.Logger) {
 	for {
 		buf := make([]byte, 1024)
 		len, raddr, _ := conn.ReadFromUDP(buf)
@@ -73,10 +81,10 @@ func listenServer(conn *net.UDPConn, receiveChannel chan UDPMessage, logger log.
 	}
 }
 
-func broadcastServer(conn *net.UDPConn, port string, sendChannel chan UDPMessage, logger log.Logger) {
+func broadcastServer(conn *net.UDPConn, port string, sendChannel chan UDPMessage, networkLogger log.Logger) {
 	baddr, err := net.ResolveUDPAddr("udp", "255.255.255.255:"+port)
 	if err != nil {
-		logger.Fatal(err)
+		networkLogger.Fatal(err)
 	}
 
 	for {

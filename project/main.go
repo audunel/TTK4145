@@ -49,11 +49,12 @@ func main() {
 	networkLogger := logger.NewLogger("NETWORK")
 
 	if startAsMaster {
-		go network.UDPInit(true, masterEvents.ToSlaves, masterEvents.FromSlaves, networkLogger)
+		networkKillswitch := make(chan bool)
+		go network.UDPInit(true, masterEvents.ToSlaves, masterEvents.FromSlaves, networkLogger, networkKillswitch)
 		masterLogger := logger.NewLogger("MASTER")
-		go master.InitMaster(masterEvents, nil, nil, masterLogger)
+		go master.InitMaster(masterEvents, nil, nil, masterLogger, networkKillswitch)
 	}
-	go network.UDPInit(false, slaveEvents.ToMaster, slaveEvents.FromMaster, networkLogger)
+	go network.UDPInit(false, slaveEvents.ToMaster, slaveEvents.FromMaster, networkLogger, nil)
 	slaveLogger := logger.NewLogger("SLAVE")
 	slave.InitSlave(slaveEvents, masterEvents, elevatorEvents, slaveLogger)
 }
