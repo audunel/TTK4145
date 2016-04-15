@@ -3,7 +3,6 @@ package order
 import (
 	"../driver"
 	"../network"
-//	"fmt"
 )
 
 type Order struct {
@@ -65,23 +64,6 @@ func PrioritizeOrders(orders []Order, ip network.IP, lastPassedFloor int, curren
 	}
 }
 
-/*func TestClosestOrder() {
-	ip := network.IP("123")
-
-	orders := make([]Order, 0)
-	order1 := Order{Button: driver.OrderButton{Type: driver.ButtonCallUp, Floor: 1}, TakenBy: ip, Done: false, Priority: false}
-	order2 := Order{Button: driver.OrderButton{Type: driver.ButtonCallCommand, Floor: 3}, TakenBy: ip, Done: false, Priority: true}
-	order3 := Order{Button: driver.OrderButton{Type: driver.ButtonCallUp, Floor: 2}, TakenBy: ip, Done: false, Priority: false}
-	orders = append(orders, order1, order2, order3)
-
-	lastPassedFloor := 0
-	currentTargetFloor := 3
-	currentDirection := driver.DirnUp
-
-	priority := closestOrder(ip, orders, lastPassedFloor, currentTargetFloor, currentDirection)
-	fmt.Printf("Priority floor: %d\n", orders[priority].Button.Floor)
-}*/
-
 func closestOrder(ip network.IP, orders []Order, lastPassedFloor, currentTargetFloor int, currentDirection driver.MotorDirection) int {
 	currentIndex	:= -1
 	currentDistance	:= -1
@@ -100,15 +82,8 @@ func closestOrder(ip network.IP, orders []Order, lastPassedFloor, currentTargetF
 
 		movingUp	:= currentDirection == driver.DirnUp
 		movingDown	:= currentDirection == driver.DirnDown
-/*
-		movingUp	:= currentTargetFloor - lastPassedFloor > 0
-		movingDown	:= currentTargetFloor - lastPassedFloor < 0
-*/
 
-		if orderAbove && movingUp && !orderDown {
-			distance = distanceSquared(lastPassedFloor, o.Button.Floor)
-		}
-		if orderBelow && movingDown && !orderUp {
+		if (orderAbove && movingUp && !orderDown) || (orderBelow && movingUp && !orderUp) {
 			distance = distanceSquared(lastPassedFloor, o.Button.Floor)
 		}
 		if (orderAbove || orderUp) && movingDown {
