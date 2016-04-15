@@ -3,9 +3,8 @@ package order
 import (
 	"../driver"
 	"../network"
+	"fmt"
 )
-
-const InvalidFloor = -1
 
 type Order struct {
 	Button	 driver.OrderButton
@@ -47,7 +46,7 @@ func GetPriority(orders []Order, ip network.IP) *Order {
 }
 
 func PrioritizeOrders(orders []Order, ip network.IP, lastPassedFloor int, currentDirection driver.MotorDirection) {
-	targetFloor 	:= InvalidFloor
+	targetFloor 	:= -1
 	currentPriority := -1
 	for i, o := range(orders) {
 		if o.TakenBy == ip && o.Priority {
@@ -66,7 +65,25 @@ func PrioritizeOrders(orders []Order, ip network.IP, lastPassedFloor int, curren
 	}
 }
 
-	
+/*
+func TestClosestOrder() {
+	ip := network.IP("123")
+
+	orders := make([]Order, 0)
+	order1 := Order{Button: driver.OrderButton{Type: driver.ButtonCallCommand, Floor: 1}, TakenBy: ip, Done: false, Priority: true}
+	order2 := Order{Button: driver.OrderButton{Type: driver.ButtonCallCommand, Floor: 3}, TakenBy: ip, Done: false, Priority: false}
+	order3 := Order{Button: driver.OrderButton{Type: driver.ButtonCallCommand, Floor: 0}, TakenBy: ip, Done: false, Priority: false}
+	orders = append(orders, order1, order2, order3)
+
+	lastPassedFloor := 0
+	currentTargetFloor := 3
+	currentDirection := driver.DirnStop
+
+	priority := closestOrder(ip, orders, lastPassedFloor, currentTargetFloor, currentDirection)
+	fmt.Printf("Priority floor: %d\n", orders[priority].Button.Floor+1)
+}
+*/
+
 func closestOrder(ip network.IP, orders []Order, lastPassedFloor, currentTargetFloor int, currentDirection driver.MotorDirection) int {
 	currentIndex	:= -1
 	currentDistance	:= -1
@@ -76,23 +93,29 @@ func closestOrder(ip network.IP, orders []Order, lastPassedFloor, currentTargetF
 		if o.TakenBy != ip {
 			continue
 		}
+		
+		orderUp		 := o.Button.Type == driver.ButtonCallUp
+		orderDown	 := o.Button.Type == driver.ButtonCallDown
 
-		if currentTargetFloor == -1 {
-			distance = distanceSquared(o.Button.Floor, lastPassedFloor)
-		} else {
-			if o.Button.Floor <= lastPassedFloor || o.Button.Floor > currentTargetFloor {
-				continue
+		movingUp	:= currentDirection == driver.DirnUp
+		movingDown	:= currentDirection == driver.DirnDown
+
+		if !orderDown && movingUp {
+			if o.Button.Floor > lastPassedFloor {
+				fmt.Printf("ONE Last passed floor: %d\nOld target floor: %d\nNew target floor: %d\n\n", lastPassedFloor, currentTargetFloor, o.Button.Floor)
+				if (currentTargetFloor == -1) || (o.Button.Floor <= currentTargetFloor) {
+					distance = distanceSquared(lastPassedFloor, o.Button.Floor)
+				}
 			}
-			
-			orderUp		 := o.Button.Type == driver.ButtonCallUp
-			orderDown	 := o.Button.Type == driver.ButtonCallDown
-			orderCommand := o.Button.Type == driver.ButtonCallCommand
-
-			if ((currentDirection == driver.DirnUp && (orderUp || orderCommand)) ||
-				(currentDirection == driver.DirnDown && (orderDown || orderCommand))) {
-				distance = distanceSquared(o.Button.Floor, lastPassedFloor)
+		} else if !orderUp && movingDown {
+			if o.Button.Floor < lastPassedFloor {
+				fmt.Printf("TWO Last passed floor: %d\nOld target floor: %d\nNew target floor: %d", lastPassedFloor, currentTargetFloor, o.Button.Floor)
+				if (currentTargetFloor == -1 ) || (o.Button.Floor >= currentTargetFloor) {
+					distance = distanceSquared(lastPassedFloor, o.Button.Floor)
+				}
 			}
 		}
+
 		if currentIndex == -1 || distance < currentDistance {
 			currentIndex = i
 			currentDistance = distance

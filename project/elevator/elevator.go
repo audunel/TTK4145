@@ -76,17 +76,18 @@ func Init(
 						break
 					} else if targetFloor > lastPassedFloor {
 						state = moving
+						driver.SetMotorDirection(driver.DirnUp)
 						currentDirection = driver.DirnUp
 					} else if targetFloor < lastPassedFloor {
 						state = moving
+						driver.SetMotorDirection(driver.DirnDown)
 						currentDirection = driver.DirnDown
 					} else {
 						doorTimer.Reset(doorPeriod)
 						driver.SetDoorOpenLamp(1)
-						currentDirection = driver.DirnStop
+						driver.SetMotorDirection(driver.DirnStop)
 						state = doorOpen
 					}
-					driver.SetMotorDirection(currentDirection)
 				case moving:
 				case doorOpen:
 			}
@@ -100,16 +101,17 @@ func Init(
 					if targetFloor == -1 {
 						break
 					} else if targetFloor > lastPassedFloor {
+						driver.SetMotorDirection(driver.DirnUp)
 						currentDirection = driver.DirnUp
 					} else if targetFloor < lastPassedFloor {
+						driver.SetMotorDirection(driver.DirnDown)
 						currentDirection = driver.DirnDown
 					} else {
 						doorTimer.Reset(doorPeriod)
 						driver.SetDoorOpenLamp(1)
-						currentDirection = driver.DirnStop
+						driver.SetMotorDirection(driver.DirnStop)
 						state = doorOpen
 					}
-					driver.SetMotorDirection(currentDirection)
 				case idle:
 					elevLogger.Printf("Reached floor %d, state at idle", floor+1)
 				case doorOpen:

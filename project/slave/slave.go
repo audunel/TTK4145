@@ -14,7 +14,7 @@ import (
 
 const (
 	masterTimeout	= 5 * time.Second
-	sendInterval	= 100 * time.Millisecond
+	sendInterval	= 200 * time.Millisecond
 )
 var myIP = network.GetOwnIP()
 
@@ -24,7 +24,7 @@ func InitSlave(
 		elevatorEvents  com.ElevatorEvent,
 		slaveLogger		log.Logger) {
 
-    slaveLogger.Print("Awaiting master")
+    slaveLogger.Print("Waiting for master")
     sendTicker := time.NewTicker(sendInterval)
 
     orders  := make([]order.Order, 0)
@@ -73,7 +73,7 @@ func InitSlave(
             if button.Type == driver.ButtonCallCommand {
                 orders = append(orders, order.Order {Button: button, TakenBy: myIP})
 
-				order.PrioritizeOrders(orders, myIP, elevator.GetLastPassedFloor())
+				order.PrioritizeOrders(orders, myIP, elevator.GetLastPassedFloor(), elevator.GetCurrentDirection())
 				driver.ClearAllButtonLamps()
 				for _, o := range(orders) {
 					if o.Button.Type == driver.ButtonCallCommand && o.TakenBy != myIP {
@@ -90,7 +90,7 @@ func InitSlave(
         case <- sendTicker.C:
             data := com.SlaveData {
                 LastPassedFloor:  elevator.GetLastPassedFloor(),
-				CurrentDirection: 
+				CurrentDirection: elevator.GetCurrentDirection(),
             }
             slaveEvents.ToMaster <- network.UDPMessage {
                 Data: com.EncodeSlaveData(data),

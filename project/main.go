@@ -9,12 +9,16 @@ import (
 	"./slave"
 	"./com"
 	"./logger"
+//	"./order"
 )
 
 func main() {
 	var startAsMaster bool
 	flag.BoolVar(&startAsMaster, "master", false, "Start as master")
 	flag.Parse()
+	
+	/*order.TestClosestOrder()
+	return*/
 
 	var elevatorEvents com.ElevatorEvent
 	elevatorEvents.FloorReached		= make(chan int)
