@@ -17,8 +17,8 @@ func main() {
 	flag.BoolVar(&startAsMaster, "master", false, "Start as master")
 	flag.Parse()
 	
-	/*order.TestClosestOrder()
-	return*/
+//	order.TestClosestOrder()
+//	return
 
 	var elevatorEvents com.ElevatorEvent
 	elevatorEvents.FloorReached		= make(chan int)

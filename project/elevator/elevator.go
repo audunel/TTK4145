@@ -4,6 +4,7 @@ import (
 	"../driver"
 	"time"
 	"log"
+	"fmt"
 )
 
 const deadlinePeriod	= time.Duration(5 * driver.NumFloors) * time.Second
@@ -54,7 +55,7 @@ func Init(
 					elevLogger.Print("Door timer, state at doorOpen")
 					driver.SetDoorOpenLamp(0)
 					state = idle
-					completedFloor <- targetFloor
+					completedFloor <- lastPassedFloor
 					targetFloor = -1
 					deadlineTimer.Stop()
 				case idle:
@@ -93,6 +94,11 @@ func Init(
 			}
 
 		case floor := <- floorReached:
+			if floor == driver.NumFloors - 1 {
+				currentDirection = driver.DirnStop
+			} else if floor == 0 {
+				currentDirection = driver.DirnStop
+			}
 			lastPassedFloor = floor
 			switch state {
 				case moving:
@@ -107,6 +113,7 @@ func Init(
 						driver.SetMotorDirection(driver.DirnDown)
 						currentDirection = driver.DirnDown
 					} else {
+						fmt.Printf("Stopping at floor %d\n", floor)
 						doorTimer.Reset(doorPeriod)
 						driver.SetDoorOpenLamp(1)
 						driver.SetMotorDirection(driver.DirnStop)
