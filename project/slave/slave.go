@@ -56,7 +56,7 @@ func InitSlave(
                     orders = append(orders[:i], orders[i+1:]...)
                 }
             }
-			order.PrioritizeOrders(orders, myIP, elevator.GetLastPassedFloor(), elevator.GetCurrentDirection())
+			order.PrioritizeOrders(orders, myIP, elevator.GetElevData())
 			driver.ClearAllButtonLamps()
 			for _, o := range(orders) {
 				if o.Button.Type == driver.ButtonCallCommand && o.TakenBy != myIP {
@@ -73,7 +73,7 @@ func InitSlave(
             if button.Type == driver.ButtonCallCommand {
                 orders = append(orders, order.Order {Button: button, TakenBy: myIP})
 
-				order.PrioritizeOrders(orders, myIP, elevator.GetLastPassedFloor(), elevator.GetCurrentDirection())
+				order.PrioritizeOrders(orders, myIP, elevator.GetElevData())
 				driver.ClearAllButtonLamps()
 				for _, o := range(orders) {
 					if o.Button.Type == driver.ButtonCallCommand && o.TakenBy != myIP {
@@ -89,8 +89,7 @@ func InitSlave(
 
         case <- sendTicker.C:
             data := com.SlaveData {
-                LastPassedFloor:  elevator.GetLastPassedFloor(),
-				CurrentDirection: elevator.GetCurrentDirection(),
+				ElevData: elevator.GetElevData()
             }
             slaveEvents.ToMaster <- network.UDPMessage {
                 Data: com.EncodeSlaveData(data),
@@ -130,9 +129,8 @@ func slaveLoop(
 
         case <- sendTicker.C:
             data := com.SlaveData {
-                LastPassedFloor:    elevator.GetLastPassedFloor(),
-				CurrentDirection:	elevator.GetCurrentDirection(),
-                Requests:           requests,
+                ElevData: elevator.GetElevData(),
+                Requests: requests,
             }
             slaveEvents.ToMaster <- network.UDPMessage {
                 Data: com.EncodeSlaveData(data),

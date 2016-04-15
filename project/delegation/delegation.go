@@ -8,7 +8,10 @@ import (
 	"fmt"
 )
 
-const InvalidIP = network.IP("")
+const (
+	invalidIP	= network.IP("")
+	maxDistance	= driver.NumFloors * driver.NumFloors
+)
 
 func DelegateWork(slaves map[network.IP]com.Slave, orders []order.Order) error {
 	for i, order := range(orders) {
@@ -26,25 +29,38 @@ func DelegateWork(slaves map[network.IP]com.Slave, orders []order.Order) error {
 	}
 
 	for ip, slave := range(slaves) {
-		order.PrioritizeOrders(orders, ip, slave.LastPassedFloor, slave.CurrentDirection)
+		order.PrioritizeOrders(orders, ip, slave.Data.LastPassedFloor, slave.Data.CurrentDirection)
 	}
 
 	return nil
 }
 
 func closestElevator(slaves map[network.IP]com.Slave, floor int) network.IP {
-	currentDistance	:= driver.NumFloors * driver.NumFloors
+	currentDistance	:= maxDistance
 	currentIP		:= InvalidIP
 
 	var distance int
 	for ip, slave := range(slaves) {
-		if slave.HasTimedOut {
+		if slave.HasTimedOut || slave.ElevData.busy {
 			continue
 		}
 		distance = distanceSquared(slave.LastPassedFloor, floor)
 		if distance < currentDistance {
 			currentDistance = distance
 			currentIP		= ip
+		}
+	}
+
+	if currentDistance == maxDistance { // All elevators busy
+		for ip, slave := range(slaves) {
+			if slave.HasTimedOut {
+				continue
+			}
+			distance = distanceSquared(slave.LastPassedFloor, floor)
+			if distance < currentDistance {
+				currentDistance = distance
+				currentIP		= ip
+			}
 		}
 	}
 	return currentIP

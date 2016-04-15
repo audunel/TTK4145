@@ -4,15 +4,15 @@ import (
 	"../network"
 	"../order"
 	"../driver"
+	"../elevator"
 	"time"
 	"encoding/json"
 	"log"
 )
 
 type SlaveData struct {
-	LastPassedFloor		int
-	CurrentDirection	driver.MotorDirection
-	Requests			[]order.Order
+	ElevData elevator.ElevData
+	Requests []order.Order
 }
 
 type MasterData struct {
@@ -22,11 +22,10 @@ type MasterData struct {
 }
 
 type Slave struct {
-	IP				 network.IP
-	LastPassedFloor	 int
-	CurrentDirection driver.MotorDirection
-	HasTimedOut		 bool
-	AliveTimer		 *time.Timer `json:"-"`
+	IP			network.IP
+	ElevData	elevator.ElevData
+	HasTimedOut	bool
+	AliveTimer	*time.Timer `json:"-"`
 }
 
 func EncodeMasterData(m MasterData) []byte {

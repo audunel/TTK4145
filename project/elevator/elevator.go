@@ -10,9 +10,6 @@ import (
 const deadlinePeriod	= time.Duration(5 * driver.NumFloors) * time.Second
 const doorPeriod		= 3 * time.Second
 
-var lastPassedFloor int
-var currentDirection driver.MotorDirection
-
 type state int
 const (
 	idle state = iota
@@ -20,12 +17,15 @@ const (
 	moving
 )
 
-func GetLastPassedFloor() int {
-	return lastPassedFloor
+type ElevData struct {
+	lastPassedFloor		int
+	currentDirection	driver.MotorDirection
+	busy				bool
 }
+var elevData ElevData
 
-func GetCurrentDirection() driver.MotorDirection {
-	return currentDirection
+func GetElevData() ElevData {
+	return elevData
 }
 
 func Init(
@@ -54,8 +54,9 @@ func Init(
 				case doorOpen:
 					elevLogger.Print("Door timer, state at doorOpen")
 					driver.SetDoorOpenLamp(0)
+					elevData.busy = false
 					state = idle
-					completedFloor <- lastPassedFloor
+					completedFloor <- elevData.lastPassedFloor
 					targetFloor = -1
 					deadlineTimer.Stop()
 				case idle:
@@ -75,18 +76,21 @@ func Init(
 					elevLogger.Printf("New order for floor %d, state at idle", targetFloor+1)
 					if targetFloor == -1 {
 						break
-					} else if targetFloor > lastPassedFloor {
+					} else if targetFloor > elevData.lastPassedFloor {
 						state = moving
 						driver.SetMotorDirection(driver.DirnUp)
-						currentDirection = driver.DirnUp
-					} else if targetFloor < lastPassedFloor {
+						elevData.currentDirection = driver.DirnUp
+						elevData.busy = true
+					} else if targetFloor < elevData.lastPassedFloor {
 						state = moving
 						driver.SetMotorDirection(driver.DirnDown)
-						currentDirection = driver.DirnDown
+						elevData.currentDirection = driver.DirnDown
+						elevData.busy = true
 					} else {
 						doorTimer.Reset(doorPeriod)
 						driver.SetDoorOpenLamp(1)
 						driver.SetMotorDirection(driver.DirnStop)
+						elevData.busy = true
 						state = doorOpen
 					}
 				case moving:
@@ -94,24 +98,24 @@ func Init(
 			}
 
 		case floor := <- floorReached:
-			if floor == driver.NumFloors - 1 {
-				currentDirection = driver.DirnStop
-			} else if floor == 0 {
-				currentDirection = driver.DirnStop
+			if (floor == driver.NumFloors - 1) || (floor == 0) {
+				elevData.currentDirection = driver.DirnStop
 			}
-			lastPassedFloor = floor
+			elevData.lastPassedFloor = floor
 			switch state {
 				case moving:
 					elevLogger.Printf("Reached floor %d, target floor %d state at moving", floor+1, targetFloor+1)
 					driver.SetFloorIndicator(floor)
 					if targetFloor == -1 {
 						break
-					} else if targetFloor > lastPassedFloor {
+					} else if targetFloor > elevData.lastPassedFloor {
 						driver.SetMotorDirection(driver.DirnUp)
-						currentDirection = driver.DirnUp
-					} else if targetFloor < lastPassedFloor {
+						elevData.currentDirection = driver.DirnUp
+						elevData.busy = true
+					} else if targetFloor < elevData.lastPassedFloor {
 						driver.SetMotorDirection(driver.DirnDown)
-						currentDirection = driver.DirnDown
+						elevData.currentDirection = driver.DirnDown
+						elevData.busy = true
 					} else {
 						fmt.Printf("Stopping at floor %d\n", floor)
 						doorTimer.Reset(doorPeriod)
