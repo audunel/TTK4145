@@ -42,9 +42,11 @@ func GetOwnIP() IP {
 func UDPInit(master bool, sendChannel, receiveChannel chan UDPMessage, networkLogger log.Logger) {
 	var localPort, broadcastPort string
 	if master {
+		networkLogger.Print("Connecting as master")
 		localPort = masterPort
 		broadcastPort = slavePort
 	} else {
+		networkLogger.Print("Connecting as slave")
 		localPort = slavePort
 		broadcastPort = masterPort
 	}
@@ -65,6 +67,7 @@ func UDPInit(master bool, sendChannel, receiveChannel chan UDPMessage, networkLo
 }
 
 func listenServer(conn *net.UDPConn, receiveChannel chan UDPMessage, networkLogger log.Logger) {
+	networkLogger.Printf("Listening on %s", conn.LocalAddr().String())
 	for {
 		buf := make([]byte, 1024)
 		len, raddr, _ := conn.ReadFromUDP(buf)
@@ -73,6 +76,7 @@ func listenServer(conn *net.UDPConn, receiveChannel chan UDPMessage, networkLogg
 }
 
 func broadcastServer(conn *net.UDPConn, port string, sendChannel chan UDPMessage, networkLogger log.Logger) {
+	networkLogger.Printf("Broadcasting to port %s", port)
 	baddr, err := net.ResolveUDPAddr("udp", "255.255.255.255:"+port)
 	if err != nil {
 		networkLogger.Fatal(err)

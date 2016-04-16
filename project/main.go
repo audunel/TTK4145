@@ -11,14 +11,21 @@ import (
 	"encoding/json"
 	"flag"
 	"os"
+	"os/signal"
 )
 
 func main() {
+	mainLogger := logger.NewLogger("MAIN")
+
 	var startAsMaster, recoverBackup, selfAsBackup bool
 	flag.BoolVar(&startAsMaster, "master", false, "Start as master")
 	flag.BoolVar(&recoverBackup, "recover", false, "Recover backup data from disk (Must be master!)")
-	flag.BoolVar(&selfAsBackup, "selfAsBackup", false, "Can use self as backup")
+	flag.BoolVar(&selfAsBackup, "selfAsBackup", false, "Can use self as backup (Must be master!)")
 	flag.Parse()
+
+	if !startAsMaster && (recoverBackup || selfAsBackup) {
+		mainLogger.Fatal("FATAL: Can only recover or use self as backup as master")
+	}
 
 	var elevatorEvents com.ElevatorEvent
 	elevatorEvents.FloorReached = make(chan int)
@@ -35,38 +42,43 @@ func main() {
 	masterEvents.ToSlaves = make(chan network.UDPMessage)
 	masterEvents.FromSlaves = make(chan network.UDPMessage)
 
+	go func() {
+		c := make(chan os.Signal)
+		signal.Notify(c, os.Interrupt)
+		<-c
+		driver.SetMotorDirection(driver.DirnStop)
+		mainLogger.Fatal("Program terminated")
+	}()
+
+	mainLogger.Print("Initializing elevator")
 	driver.ElevInit()
 
 	go driver.EventListener(
 		slaveEvents.ButtonPressed,
 		elevatorEvents.FloorReached)
 
-	elevLogger := logger.NewLogger("ELEV")
 	go elevator.Init(
 		slaveEvents.CompletedFloor,
 		slaveEvents.MissedDeadline,
 		elevatorEvents.FloorReached,
 		elevatorEvents.NewTargetFloor,
-		elevLogger)
-
-	networkLogger := logger.NewLogger("NETWORK")
+		logger.NewLogger("ELEV"))
 
 	if startAsMaster {
-		go network.UDPInit(true, masterEvents.ToSlaves, masterEvents.FromSlaves, networkLogger)
+		go network.UDPInit(true, masterEvents.ToSlaves, masterEvents.FromSlaves, logger.NewLogger("NETWORK"))
 		masterLogger := logger.NewLogger("MASTER")
 		var initialData com.MasterData
 		if recoverBackup {
 			file, err := os.Open("backupData.json")
+			buf := make([]byte, 1024)
+			n, err := file.Read(buf)
+			err = json.Unmarshal(buf[:n], &initialData)
 			if err != nil {
 				masterLogger.Print(err)
 			}
-			buf := make([]byte, 1024)
-			n, _ := file.Read(buf)
-			err = json.Unmarshal(buf[:n], &initialData)
 		}
 		go master.InitMaster(masterEvents, initialData.Orders, initialData.Slaves, masterLogger, selfAsBackup)
 	}
-	go network.UDPInit(false, slaveEvents.ToMaster, slaveEvents.FromMaster, networkLogger)
-	slaveLogger := logger.NewLogger("SLAVE")
-	slave.InitSlave(slaveEvents, masterEvents, elevatorEvents, slaveLogger)
+	go network.UDPInit(false, slaveEvents.ToMaster, slaveEvents.FromMaster, logger.NewLogger("NETWORK"))
+	slave.InitSlave(slaveEvents, masterEvents, elevatorEvents, logger.NewLogger("SLAVE"))
 }
