@@ -1,5 +1,6 @@
-# Log file
-log
+# Log and backup files
+*.txt
+*.json
 
 # Swap files
 *.swp

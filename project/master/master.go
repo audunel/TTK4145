@@ -6,7 +6,9 @@ import (
 	"../driver"
 	"../network"
 	"../order"
+	"encoding/json"
 	"log"
+	"os"
 	"time"
 )
 
@@ -118,6 +120,7 @@ func masterLoop(events com.MasterEvent,
 				Address: myIP,
 				Data:    com.EncodeMasterData(data),
 			}
+			saveToFile(data, masterLogger)
 
 		case slaveIP := <-slaveTimedOut:
 			masterLogger.Printf("Slave %s timed out", slaveIP)
@@ -177,4 +180,17 @@ func removeDoneOrders(requests, orders []order.Order) []order.Order {
 		}
 	}
 	return orders
+}
+
+func saveToFile(data com.MasterData, masterLogger log.Logger) {
+	file, err := os.Create("backupData.json")
+	if err != nil {
+		masterLogger.Print(err)
+	}
+	buf, err := json.Marshal(data)
+	if err != nil {
+		masterLogger.Print(err)
+	}
+	file.Write(buf)
+	file.Close()
 }

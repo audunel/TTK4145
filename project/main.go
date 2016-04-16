@@ -8,12 +8,15 @@ import (
 	"./master"
 	"./network"
 	"./slave"
+	"encoding/json"
 	"flag"
+	"os"
 )
 
 func main() {
-	var startAsMaster, selfAsBackup bool
+	var startAsMaster, recoverBackup, selfAsBackup bool
 	flag.BoolVar(&startAsMaster, "master", false, "Start as master")
+	flag.BoolVar(&recoverBackup, "recover", false, "Recover backup data from disk (Must be master!)")
 	flag.BoolVar(&selfAsBackup, "selfAsBackup", false, "Can use self as backup")
 	flag.Parse()
 
@@ -51,7 +54,17 @@ func main() {
 	if startAsMaster {
 		go network.UDPInit(true, masterEvents.ToSlaves, masterEvents.FromSlaves, networkLogger)
 		masterLogger := logger.NewLogger("MASTER")
-		go master.InitMaster(masterEvents, nil, nil, masterLogger, selfAsBackup)
+		var initialData com.MasterData
+		if recoverBackup {
+			file, err := os.Open("backupData.json")
+			if err != nil {
+				masterLogger.Print(err)
+			}
+			buf := make([]byte, 1024)
+			n, _ := file.Read(buf)
+			err = json.Unmarshal(buf[:n], &initialData)
+		}
+		go master.InitMaster(masterEvents, initialData.Orders, initialData.Slaves, masterLogger, selfAsBackup)
 	}
 	go network.UDPInit(false, slaveEvents.ToMaster, slaveEvents.FromMaster, networkLogger)
 	slaveLogger := logger.NewLogger("SLAVE")
