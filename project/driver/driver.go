@@ -8,22 +8,24 @@ package driver
 import "C"
 
 type MotorDirection int
+
 const (
-	DirnDown	MotorDirection = -1
-	DirnStop	MotorDirection = 0
-	DirnUp		MotorDirection = 1
+	DirnDown MotorDirection = -1
+	DirnStop MotorDirection = 0
+	DirnUp   MotorDirection = 1
 )
 
 type ButtonType int
+
 const (
-	ButtonCallUp		ButtonType = 0
-	ButtonCallDown		ButtonType = 1
-	ButtonCallCommand	ButtonType = 2
+	ButtonCallUp      ButtonType = 0
+	ButtonCallDown    ButtonType = 1
+	ButtonCallCommand ButtonType = 2
 )
 
 type OrderButton struct {
-	Type	ButtonType
-	Floor	int
+	Type  ButtonType
+	Floor int
 }
 
 const (
@@ -40,7 +42,8 @@ func ElevInit() {
 	SetFloorIndicator(0)
 
 	SetMotorDirection(DirnDown)
-	for GetFloorSignal() != 0 {}
+	for GetFloorSignal() == -1 {
+	}
 	SetMotorDirection(DirnStop)
 }
 
@@ -56,13 +59,13 @@ func EventListener(buttonEvent chan OrderButton, floorEvent chan int) {
 			floorEvent <- floorSignal
 			lastPassedFloor = floorSignal
 		}
-		
+
 		for floor := 0; floor < NumFloors; floor++ {
 			for button := ButtonCallUp; int(button) < NumButtons; button++ {
 				if (floor == 0) && (button == ButtonCallDown) {
 					continue
 				}
-				if (floor == NumFloors - 1) && (button == ButtonCallUp) {
+				if (floor == NumFloors-1) && (button == ButtonCallUp) {
 					continue
 				}
 				buttonSignal = GetButtonSignal(button, floor)
@@ -79,7 +82,7 @@ func EventListener(buttonEvent chan OrderButton, floorEvent chan int) {
 
 func ClearAllButtonLamps() {
 	for floor := 0; floor < NumFloors; floor++ {
-		if floor < NumFloors - 1 {
+		if floor < NumFloors-1 {
 			SetButtonLamp(ButtonCallUp, floor, 0)
 		}
 		if floor > 0 {
