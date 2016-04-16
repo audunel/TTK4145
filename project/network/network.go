@@ -1,21 +1,21 @@
 package network
 
 import (
-	"net"
 	"log"
+	"net"
 )
 
 const (
-	masterPort	= "20021"
-	slavePort	= "20022"
+	masterPort = "20021"
+	slavePort  = "20022"
 )
 
 type IP string
 
 type UDPMessage struct {
 	Address IP
-	Data	[]byte
-	Length	int
+	Data    []byte
+	Length  int
 }
 
 func GetOwnIP() IP {
@@ -37,40 +37,31 @@ func GetOwnIP() IP {
 		}
 	}
 	return "127.0.0.1"
-}	
+}
 
-func UDPInit(master bool, sendChannel, receiveChannel chan UDPMessage, networkLogger log.Logger, killswitch chan bool) {
-	for {
-		select {
-		case <- killswitch:
-			networkLogger.Print("Received signal to shut down")
-			return
-
-		default:
-			var localPort, broadcastPort string
-			if master {
-				localPort		= masterPort
-				broadcastPort	= slavePort
-			} else {
-				localPort		= slavePort
-				broadcastPort	= masterPort
-			}
-	
-			laddr, err := net.ResolveUDPAddr("udp", ":"+localPort)
-			if err != nil {
-				networkLogger.Fatal(err)
-			}
-	
-			conn, err := net.ListenUDP("udp", laddr)
-			if err != nil {
-				networkLogger.Println("Failed to connect")
-			}
-			defer conn.Close()
-
-			go listenServer(conn, receiveChannel, networkLogger)
-			broadcastServer(conn, broadcastPort, sendChannel, networkLogger)
-		}
+func UDPInit(master bool, sendChannel, receiveChannel chan UDPMessage, networkLogger log.Logger) {
+	var localPort, broadcastPort string
+	if master {
+		localPort = masterPort
+		broadcastPort = slavePort
+	} else {
+		localPort = slavePort
+		broadcastPort = masterPort
 	}
+
+	laddr, err := net.ResolveUDPAddr("udp", ":"+localPort)
+	if err != nil {
+		networkLogger.Fatal(err)
+	}
+
+	conn, err := net.ListenUDP("udp", laddr)
+	if err != nil {
+		networkLogger.Println("Failed to connect")
+	}
+	defer conn.Close()
+
+	go listenServer(conn, receiveChannel, networkLogger)
+	broadcastServer(conn, broadcastPort, sendChannel, networkLogger)
 }
 
 func listenServer(conn *net.UDPConn, receiveChannel chan UDPMessage, networkLogger log.Logger) {
@@ -88,7 +79,7 @@ func broadcastServer(conn *net.UDPConn, port string, sendChannel chan UDPMessage
 	}
 
 	for {
-		message := <- sendChannel
+		message := <-sendChannel
 		conn.WriteToUDP(message.Data, baddr)
 	}
 }

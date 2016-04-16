@@ -6,19 +6,19 @@ import (
 )
 
 type Order struct {
-	Button	 driver.OrderButton
-	TakenBy	 network.IP
-	Done	 bool
+	Button   driver.OrderButton
+	TakenBy  network.IP
+	Done     bool
 	Priority bool
 }
 
 func OrdersEqual(order1, order2 Order) bool {
-	return	order1.Button.Floor == order2.Button.Floor &&
-			order1.Button.Type == order2.Button.Type
+	return order1.Button.Floor == order2.Button.Floor &&
+		order1.Button.Type == order2.Button.Type
 }
 
 func OrderNew(request Order, orders []Order) bool {
-	for _, o := range(orders) {
+	for _, o := range orders {
 		if OrdersEqual(request, o) {
 			return false
 		}
@@ -27,7 +27,7 @@ func OrderNew(request Order, orders []Order) bool {
 }
 
 func OrderDone(order Order, orders []Order) bool {
-	for _, o := range(orders) {
+	for _, o := range orders {
 		if OrdersEqual(o, order) && o.Done {
 			return true
 		}
@@ -36,7 +36,7 @@ func OrderDone(order Order, orders []Order) bool {
 }
 
 func GetPriority(orders []Order, ip network.IP) *Order {
-	for _, o := range(orders) {
+	for _, o := range orders {
 		if o.TakenBy == ip && o.Priority {
 			return &o
 		}
@@ -45,11 +45,11 @@ func GetPriority(orders []Order, ip network.IP) *Order {
 }
 
 func PrioritizeOrders(orders []Order, ip network.IP, lastPassedFloor int, currentDirection driver.MotorDirection) {
-	targetFloor 	:= -1
+	targetFloor := -1
 	currentPriority := -1
-	for i, o := range(orders) {
+	for i, o := range orders {
 		if o.TakenBy == ip && o.Priority {
-			targetFloor		= o.Button.Floor
+			targetFloor = o.Button.Floor
 			currentPriority = i
 		}
 	}
@@ -65,32 +65,32 @@ func PrioritizeOrders(orders []Order, ip network.IP, lastPassedFloor int, curren
 }
 
 func closestOrder(ip network.IP, orders []Order, lastPassedFloor, currentTargetFloor int, currentDirection driver.MotorDirection) int {
-	currentIndex	:= -1
-	currentDistance	:= -1
+	currentIndex := -1
+	currentDistance := -1
 
 	var distance int
-	for i, o := range(orders) {
+	for i, o := range orders {
 		if o.TakenBy != ip {
 			continue
 		}
 
-		orderAbove	:= o.Button.Floor - lastPassedFloor > 0
-		orderBelow	:= o.Button.Floor - lastPassedFloor < 0
+		orderAbove := o.Button.Floor-lastPassedFloor > 0
+		orderBelow := o.Button.Floor-lastPassedFloor < 0
 
-		orderUp		 := o.Button.Type == driver.ButtonCallUp
-		orderDown	 := o.Button.Type == driver.ButtonCallDown
+		orderUp := o.Button.Type == driver.ButtonCallUp
+		orderDown := o.Button.Type == driver.ButtonCallDown
 
-		movingUp	:= currentDirection == driver.DirnUp
-		movingDown	:= currentDirection == driver.DirnDown
+		movingUp := currentDirection == driver.DirnUp
+		movingDown := currentDirection == driver.DirnDown
 
-		if (orderAbove && movingUp && !orderDown) || (orderBelow && movingUp && !orderUp) {
+		if (orderAbove && movingUp && !orderDown) || (orderBelow && movingDown && !orderUp) {
 			distance = distanceSquared(lastPassedFloor, o.Button.Floor)
 		}
 		if (orderAbove || orderUp) && movingDown {
 			distance = distanceSquared(lastPassedFloor, 0) + distanceSquared(0, o.Button.Floor)
 		}
 		if (orderBelow || orderDown) && movingUp {
-			distance = distanceSquared(lastPassedFloor, driver.NumFloors - 1) + distanceSquared(driver.NumFloors, o.Button.Floor)
+			distance = distanceSquared(lastPassedFloor, driver.NumFloors-1) + distanceSquared(driver.NumFloors, o.Button.Floor)
 		}
 
 		if currentIndex == -1 || distance < currentDistance {
