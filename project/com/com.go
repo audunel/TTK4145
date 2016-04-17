@@ -1,13 +1,13 @@
 package com
 
 import (
-	"../network"
-	"../order"
 	"../driver"
 	"../elevator"
-	"time"
+	"../network"
+	"../order"
 	"encoding/json"
 	"log"
+	"time"
 )
 
 type SlaveData struct {
@@ -16,16 +16,16 @@ type SlaveData struct {
 }
 
 type MasterData struct {
-	AssignedBackup	network.IP
-	Orders			[]order.Order
-	Slaves			map[network.IP]Slave
+	AssignedBackup network.IP
+	Orders         []order.Order
+	Slaves         map[network.IP]Slave
 }
 
 type Slave struct {
-	IP			network.IP
-	ElevData	elevator.ElevData
-	HasTimedOut	bool
-	AliveTimer	*time.Timer `json:"-"`
+	IP          network.IP
+	ElevData    elevator.ElevData
+	HasTimedOut bool
+	AliveTimer  *time.Timer `json:"-"`
 }
 
 func EncodeMasterData(m MasterData) []byte {
@@ -57,19 +57,19 @@ func DecodeSlaveMessage(b []byte) (SlaveData, error) {
 }
 
 type ElevatorEvent struct {
-	FloorReached	chan int
-	NewTargetFloor	chan int
+	FloorReached   chan int
+	NewTargetFloor chan int
 }
 
 type SlaveEvent struct {
-	CompletedFloor	chan int
-	MissedDeadline	chan bool
-	ButtonPressed	chan driver.OrderButton
-	FromMaster		chan network.UDPMessage
-	ToMaster		chan network.UDPMessage
+	CompletedFloor chan int
+	MissedDeadline chan bool
+	ButtonPressed  chan driver.OrderButton
+	FromMaster     chan network.UDPMessage
+	ToMaster       chan network.UDPMessage
 }
 
 type MasterEvent struct {
-	ToSlaves	chan network.UDPMessage
-	FromSlaves	chan network.UDPMessage
+	ToSlaves   chan network.UDPMessage
+	FromSlaves chan network.UDPMessage
 }
