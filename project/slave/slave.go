@@ -143,7 +143,7 @@ func slaveLoop(
 			requests = append(requests, order.Order{Button: button})
 
 		case floor := <-slaveEvents.CompletedFloor:
-			slaveLogger.Printf("Completed floor %d", floor+1)
+			slaveLogger.Printf("Completed order for floor %d", floor+1)
 			for _, o := range orders {
 				if o.TakenBy == myIP && o.Button.Floor == floor {
 					o.Done = true

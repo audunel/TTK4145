@@ -2,7 +2,6 @@ package elevator
 
 import (
 	"../driver"
-	"fmt"
 	"log"
 	"time"
 )
@@ -54,17 +53,18 @@ func Init(
 		case <-doorTimer.C:
 			switch state {
 			case doorOpen:
-				elevLogger.Print("Door timer, state at doorOpen")
+				elevLogger.Print("Door timer, state @ doorOpen")
 				driver.SetDoorOpenLamp(0)
 				elevData.Busy = false
-				state = idle
 				completedFloor <- elevData.LastPassedFloor
 				targetFloor = -1
 				deadlineTimer.Stop()
+				state = idle
+				elevLogger.Print("Closing door")
 			case idle:
-				elevLogger.Print("Door timer, state at idle")
+				elevLogger.Print("Door timer, state @ idle")
 			case moving:
-				elevLogger.Print("Door timer, state at moving")
+				elevLogger.Print("Door timer, state @ moving")
 			}
 
 		case floor := <-newTargetFloor:
@@ -75,7 +75,7 @@ func Init(
 			targetFloor = floor
 			switch state {
 			case idle:
-				elevLogger.Printf("New order for floor %d, state at idle", targetFloor+1)
+				elevLogger.Printf("New order for floor %d, state @ idle", targetFloor+1)
 				if targetFloor == -1 {
 					break
 				} else if targetFloor > elevData.LastPassedFloor {
@@ -106,7 +106,7 @@ func Init(
 			elevData.LastPassedFloor = floor
 			switch state {
 			case moving:
-				elevLogger.Printf("Reached floor %d, target floor %d state at moving", floor+1, targetFloor+1)
+				elevLogger.Printf("Reached floor %d, target floor %d state @ moving", floor+1, targetFloor+1)
 				driver.SetFloorIndicator(floor)
 				if targetFloor == -1 {
 					break
@@ -119,16 +119,16 @@ func Init(
 					elevData.CurrentDirection = driver.DirnDown
 					elevData.Busy = true
 				} else {
-					fmt.Printf("Stopping at floor %d\n", floor)
 					doorTimer.Reset(doorPeriod)
 					driver.SetDoorOpenLamp(1)
 					driver.SetMotorDirection(driver.DirnStop)
 					state = doorOpen
+					elevLogger.Print("Opening door")
 				}
 			case idle:
-				elevLogger.Printf("Reached floor %d, state at idle", floor+1)
+				elevLogger.Printf("Reached floor %d, state @ idle", floor+1)
 			case doorOpen:
-				elevLogger.Printf("Reached floor %d, state at doorOpen", floor+1)
+				elevLogger.Printf("Reached floor %d, state @ doorOpen", floor+1)
 			}
 		}
 	}
