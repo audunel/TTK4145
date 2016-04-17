@@ -9,6 +9,7 @@ import (
 	"../network"
 	"../order"
 	"log"
+	"net"
 	"time"
 )
 
@@ -131,10 +132,17 @@ func slaveLoop(
 	for {
 		select {
 		case <-masterTimeoutTimer.C:
-			slaveLogger.Println("Master timed out")
+			slaveLogger.Print("Master timed out")
 			if isBackup {
-				go network.UDPInit(true, masterEvents.ToSlaves, masterEvents.FromSlaves, logger.NewLogger("NETWORK"))
-				go master.InitMaster(masterEvents, orders, slaves, logger.NewLogger("MASTER"), false)
+				slaveLogger.Print("I am backup")
+				conn, err := net.Dial("tcp", "google.com:80")
+				if err != nil {
+					slaveLogger.Print("Failed to connect to internet. Master will not be spawned.")
+				} else {
+					conn.Close()
+					go network.UDPInit(true, masterEvents.ToSlaves, masterEvents.FromSlaves, logger.NewLogger("NETWORK"))
+					go master.InitMaster(masterEvents, orders, slaves, logger.NewLogger("MASTER"), false)
+				}
 			}
 			return orders
 

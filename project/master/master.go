@@ -35,8 +35,8 @@ func InitMaster(events com.MasterEvent,
 	for {
 		select {
 		case <-backupDeadlineTimer.C:
-			masterLogger.Print("Not contacted by external slave within deadline. Terminating master.")
-			return
+			masterLogger.Print("Not contacted by external slave within deadline. Can now use self as backup.")
+			selfAsBackup = true
 
 		case message := <-events.FromSlaves:
 			_, err := com.DecodeSlaveMessage(message.Data)
@@ -84,6 +84,11 @@ func masterLoop(events com.MasterEvent,
 			data, err := com.DecodeSlaveMessage(message.Data)
 			if err != nil {
 				break
+			}
+
+			if (backup == myIP) && (senderIP != myIP) {
+				backup = senderIP
+				masterLogger.Printf("Changed backup to remote machine %s", senderIP)
 			}
 
 			slave, exists := slaves[senderIP]
