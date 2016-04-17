@@ -58,7 +58,8 @@ func UDPInit(master bool, sendChannel, receiveChannel chan UDPMessage, networkLo
 
 	conn, err := net.ListenUDP("udp", laddr)
 	if err != nil {
-		networkLogger.Println("Failed to connect")
+		networkLogger.Print("Failed to connect")
+		return
 	}
 	defer conn.Close()
 
