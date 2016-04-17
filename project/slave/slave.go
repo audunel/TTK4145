@@ -145,8 +145,9 @@ func slaveLoop(
 					go network.UDPInit(true, masterEvents.ToSlaves, masterEvents.FromSlaves, logger.NewLogger("NETWORK"))
 					go master.InitMaster(masterEvents, orders, slaves, logger.NewLogger("MASTER"))
 				}
+			} else {
+				return orders
 			}
-			return orders
 
 		case <-slaveEvents.MissedDeadline:
 			driver.SetMotorDirection(driver.DirnStop)
