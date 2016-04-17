@@ -105,7 +105,7 @@ func InitSlave(
 			}
 
 			priority := order.GetPriority(orders, myIP)
-			if priority != nil && !order.OrderDone(*priority, requests) {
+			if priority != nil && !order.OrderDone(*priority, orders) {
 				elevatorEvents.NewTargetFloor <- priority.Button.Floor
 			}
 		}
