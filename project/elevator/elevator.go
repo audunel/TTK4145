@@ -100,6 +100,7 @@ func Init(
 			}
 
 		case floor := <-floorReached:
+			driver.SetFloorIndicator(floor)
 			if (floor == driver.NumFloors-1) || (floor == 0) {
 				elevData.CurrentDirection = driver.DirnStop
 			}
@@ -107,7 +108,6 @@ func Init(
 			switch state {
 			case moving:
 				elevLogger.Printf("Reached floor %d, target floor %d state @ moving", floor+1, targetFloor+1)
-				driver.SetFloorIndicator(floor)
 				if targetFloor == -1 {
 					break
 				} else if targetFloor > elevData.LastPassedFloor {
