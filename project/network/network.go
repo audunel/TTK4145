@@ -53,7 +53,7 @@ func UDPInit(master bool, sendChannel, receiveChannel chan UDPMessage, networkLo
 
 	laddr, err := net.ResolveUDPAddr("udp", ":"+localPort)
 	if err != nil {
-		networkLogger.Fatal(err)
+		networkLogger.Print(err)
 	}
 
 	conn, err := net.ListenUDP("udp", laddr)
