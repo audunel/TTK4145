@@ -96,6 +96,18 @@ func InitSlave(
 			slaveEvents.ToMaster <- network.UDPMessage{
 				Data: com.EncodeSlaveData(data),
 			}
+			driver.ClearAllButtonLamps()
+			for _, o := range orders {
+				if o.Button.Type == driver.ButtonCallCommand && o.TakenBy != myIP {
+					continue
+				}
+				driver.SetButtonLamp(o.Button.Type, o.Button.Floor, 1)
+			}
+
+			priority := order.GetPriority(orders, myIP)
+			if priority != nil && !order.OrderDone(*priority, requests) {
+				elevatorEvents.NewTargetFloor <- priority.Button.Floor
+			}
 		}
 	}
 }
