@@ -96,6 +96,7 @@ func InitSlave(
 			slaveEvents.ToMaster <- network.UDPMessage{
 				Data: com.EncodeSlaveData(data),
 			}
+			elevData.GetElevData()
 			order.PrioritizeOrders(orders, myIP, elevData.LastPassedFloor, elevData.CurrentDirection)
 			driver.ClearAllButtonLamps()
 			for _, o := range orders {
