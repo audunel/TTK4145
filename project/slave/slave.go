@@ -134,14 +134,16 @@ func slaveLoop(
 		case <-masterTimeoutTimer.C:
 			slaveLogger.Print("Master timed out")
 			if isBackup {
-				slaveLogger.Print("I am backup")
+				slaveLogger.Print("Initiating backup")
 				conn, err := net.Dial("tcp", "google.com:80")
 				if err != nil {
 					slaveLogger.Print("Failed to connect to internet. Master will not be spawned.")
+					masterTimeoutTimer.Reset(masterTimeout)
 				} else {
 					conn.Close()
+					slaveLogger.Print("Spawning new master")
 					go network.UDPInit(true, masterEvents.ToSlaves, masterEvents.FromSlaves, logger.NewLogger("NETWORK"))
-					go master.InitMaster(masterEvents, orders, slaves, logger.NewLogger("MASTER"), false)
+					go master.InitMaster(masterEvents, orders, slaves, logger.NewLogger("MASTER"))
 				}
 			}
 			return orders

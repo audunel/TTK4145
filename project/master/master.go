@@ -23,10 +23,10 @@ var myIP = network.GetOwnIP()
 func InitMaster(events com.MasterEvent,
 	initialOrders []order.Order,
 	initialSlaves map[network.IP]com.Slave,
-	masterLogger log.Logger,
-	selfAsBackup bool) {
+	masterLogger log.Logger) {
 
 	backupDeadlineTimer := time.NewTimer(backupDeadline)
+	selfAsBackup := false
 
 	orders := initialOrders
 	slaves := initialSlaves

@@ -17,13 +17,12 @@ import (
 func main() {
 	mainLogger := logger.NewLogger("MAIN")
 
-	var startAsMaster, recoverBackup, singleElevator bool
+	var startAsMaster, recoverBackup bool
 	flag.BoolVar(&startAsMaster, "master", false, "Start as master")
 	flag.BoolVar(&recoverBackup, "recover", false, "Recover backup data from disk (Must be master!)")
-	flag.BoolVar(&singleElevator, "single-elevator", false, "Can use self as backup (Must be master!)")
 	flag.Parse()
 
-	if !(startAsMaster || singleElevator) && recoverBackup {
+	if !startAsMaster && recoverBackup {
 		mainLogger.Fatal("FATAL: Can only recover as master or in single elevator mode")
 	}
 
@@ -64,7 +63,7 @@ func main() {
 		elevatorEvents.NewTargetFloor,
 		logger.NewLogger("ELEV"))
 
-	if startAsMaster || singleElevator {
+	if startAsMaster {
 		go network.UDPInit(true, masterEvents.ToSlaves, masterEvents.FromSlaves, logger.NewLogger("NETWORK"))
 		masterLogger := logger.NewLogger("MASTER")
 		var initialData com.MasterData
@@ -77,7 +76,7 @@ func main() {
 				masterLogger.Print(err)
 			}
 		}
-		go master.InitMaster(masterEvents, initialData.Orders, initialData.Slaves, masterLogger, singleElevator)
+		go master.InitMaster(masterEvents, initialData.Orders, initialData.Slaves, masterLogger)
 	}
 	go network.UDPInit(false, slaveEvents.ToMaster, slaveEvents.FromMaster, logger.NewLogger("NETWORK"))
 	slave.InitSlave(slaveEvents, masterEvents, elevatorEvents, logger.NewLogger("SLAVE"))
