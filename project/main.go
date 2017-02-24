@@ -17,8 +17,6 @@ import (
 func main() {
 	mainLogger := logger.NewLogger("MAIN")
 
-	fmt.Println("Hello world!")
-
 	var startAsMaster, recoverBackup bool
 	flag.BoolVar(&startAsMaster, "master", false, "Start as master")
 	flag.BoolVar(&recoverBackup, "recover", false, "Recover backup data from disk (Must be master!)")
